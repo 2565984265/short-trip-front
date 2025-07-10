@@ -1,36 +1,172 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 旅行轻指南 · 短途旅途规划平台
 
-## Getting Started
+> 结合 AI 能力与创作者社区，打造轻量、高效、真实、有趣的短途旅行规划平台。
 
-First, run the development server:
+---
 
+## 目录
+- [一、项目概述](#一项目概述)
+- [二、产品定位](#二产品定位)
+- [三、目标用户](#三目标用户)
+- [四、核心功能模块](#四核心功能模块)
+- [五、技术实现](#五技术实现)
+- [六、项目里程碑](#六项目里程碑)
+- [七、预期效果与变现](#七预期效果与变现)
+- [八、风险评估与对策](#八风险评估与对策)
+- [九、结语](#九结语)
+- [项目启动与开发](#项目启动与开发)
+
+---
+
+## 一、项目概述
+**项目名称：** 旅行轻指南——短期出行规划一站式平台
+
+**项目背景：**
+随着生活节奏的加快，越来越多的人倾向于选择短期出行（如周末游、自驾游、徒步露营等）来放松自我。然而，当前短途旅行存在如下痛点：
+- 规划复杂：信息分散，难以快速制定合理路线
+- 景点冗杂：缺乏实地体验和真实建议
+- 平台割裂：需在多个平台获取地图、天气、攻略、预订等信息
+- 个性缺失：路线与玩法难以个性化匹配用户需求
+
+> 有必要打造一个聚合信息、智能辅助、社区互动的短途出行平台，为用户提供高效、实用的出行体验。
+
+---
+
+## 二、产品定位
+一个面向短途旅行者的 **AI 辅助旅行规划平台**，以网站和小程序为主要入口，结合第三方平台（如抖音、小红书）提供可视化内容，并整合导航、订阅、攻略、推荐等功能，支持多种出行方式（徒步、骑行、摩托、汽车、房车）。
+
+---
+
+## 三、目标用户
+- 喜欢短期出行的年轻人、家庭用户、自驾爱好者
+- 徒步/骑行/摩托车发烧友
+- 内容创作者与本地向导
+- 周边游、小众游热爱者
+
+---
+
+## 四、核心功能模块
+### 4.1 路线规划引擎（AI 支持）
+- 支持出行方式选择（徒步、骑行、摩托、自驾、房车）
+- 输入出发地、可用时间、偏好（如山地、森林、湖泊）
+- 输出推荐路线、预计时间表、风景点顺序与推荐玩法
+- 支持结合创作者的真实路线数据进行再规划
+
+### 4.2 地图模块（简化版）
+- 基于开放地图数据（如高德开放平台、OpenStreetMap）
+- 显示主要道路：国道、省道、乡道、城市道路
+- 标注景点、补给点、露营点
+- 提供路线图层叠加显示（如骑行路线、房车营地）
+
+### 4.3 攻略与内容系统
+- 用户可提交/浏览路线攻略
+- 攻略包含：路线图、游玩建议、装备推荐、注意事项等
+- 支持视频、图文内容嵌入（支持抖音、小红书链接）
+- 攻略可被 AI 分析用于路线生成建议
+
+### 4.4 社区与创作者体系
+- 用户认证为创作者后，可发布路线攻略
+- 创作者有专属主页，可被关注
+- 支持创作者与用户互动（问答、点赞、评论）
+- 支持创作者排行榜、推荐算法优化展示
+
+### 4.5 外部平台接入
+- 抖音 / 小红书内容嵌入展示实景
+- 导航跳转（百度地图、高德地图）提供路线导航
+
+### 4.6 消息与订阅
+- 支持关注区域（如张家界、川藏线）与出行方式（如骑行、徒步）
+- 有新路线或攻略更新时，系统推送通知
+- 支持订阅邮件提醒（每日/每周）
+
+### 4.7 广告与变现模块
+- 广告位：路线详情页、攻略页嵌入
+- 广告内容类型：本地餐厅、酒店、补给站、装备商店
+- 创作者激励计划：与广告分成绑定
+- 商家合作页面与入驻机制
+
+---
+
+## 五、技术实现
+### 5.1 技术架构
+- 前端：React + Next.js（网站）、Taro（小程序）
+- 后端：Node.js/Koa 或 Java/SpringBoot
+- 地图服务：高德开放平台 + OSM 数据处理
+- AI 路线生成：OpenAI API + 路线数据语义建模
+- 数据库：PostgreSQL + Redis
+- 云服务：阿里云 / 腾讯云（可选用 Serverless）
+- 消息通知：邮件（SendGrid）、微信模板消息、短信可选
+
+### 5.2 第三方平台接入
+- 抖音开放平台嵌入视频
+- 小红书分享链接与内容解析
+- 导航链接接入百度地图、高德地图
+
+---
+
+## 六、项目里程碑
+> 暂时无法在飞书文档外展示此内容
+
+---
+
+## 七、预期效果与变现
+### 7.1 用户价值
+- 快速规划短期旅行，提升出行效率与体验
+- 获取真实、有价值的出行建议和攻略
+- 节省时间，增强安全性（识别高风险路线）
+
+### 7.2 商业模式
+- 广告变现：本地商家（住宿、餐饮、租车）投放
+- 平台分成：与商家、装备品牌合作，预定分佣
+- 创作者经济：打赏、付费内容、品牌合作分成
+
+---
+
+## 八、风险评估与对策
+> 暂时无法在飞书文档外展示此内容
+
+---
+
+## 九、结语
+本项目结合 AI 能力与创作者社区，旨在打造一个轻量、高效、真实、有趣的短途旅行规划平台。借助优质内容与智能推荐，降低用户规划门槛，提高出行体验，未来可拓展至长途、出境、深度旅游等领域，具有广阔发展前景。
+
+---
+
+## 项目启动与开发
+
+本项目基于 [Next.js](https://nextjs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Tailwind CSS](https://tailwindcss.com/)。
+
+### 本地开发
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 构建生产环境
+```bash
+npm run build
+npm start
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+如需更多开发文档，请参考 [Next.js 官方文档](https://nextjs.org/docs)。
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+你可以按照如下步骤在本地启动项目，预览效果：
 
-## Learn More
+1. 安装依赖（只需首次或依赖变更时执行）：
+```bash
+npm install
+```
 
-To learn more about Next.js, take a look at the following resources:
+2. 启动开发服务器：
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. 打开浏览器访问：
+```
+http://localhost:3000
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+你会看到Next.js的欢迎页面，后续就可以在src目录下开发你的业务页面了！
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+需要我帮你自动执行这些命令吗？

@@ -1,0 +1,25 @@
+# 图片资源文件夹
+
+这个文件夹用于存放项目中的图片资源，包括：
+
+## 攻略相关图片
+- zhangjiajie.jpg - 张家界攻略封面
+- tibet.jpg - 川藏线攻略封面  
+- moganshan.jpg - 莫干山攻略封面
+
+## 动态内容图片
+- zhangjiajie1.jpg - 张家界动态图片1
+- zhangjiajie2.jpg - 张家界动态图片2
+- zhangjiajie3.jpg - 张家界动态图片3
+- tibet1.jpg - 川藏线动态图片
+- moganshan1.jpg - 莫干山动态图片1
+- moganshan2.jpg - 莫干山动态图片2
+
+## 其他图片
+- glass-bridge.jpg - 玻璃栈道图片
+
+## 使用说明
+1. 将图片文件放入此文件夹
+2. 在代码中使用 `/images/文件名` 路径引用
+3. 支持 jpg、png、webp 等格式
+4. 建议图片尺寸适中，避免文件过大 
