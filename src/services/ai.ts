@@ -73,7 +73,21 @@ export class AIService {
       }
 
       const result = await response.json();
-      return result;
+      
+      // 转换后端的ApiResponse格式到前端期望的格式
+      if (result.code === 0) {
+        return {
+          success: true,
+          data: result.data,
+          message: result.message
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message || '请求失败',
+          code: result.code
+        };
+      }
     } catch (error) {
       console.error('AI聊天请求失败:', error);
       return this.handleApiError(error);

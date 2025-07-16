@@ -82,6 +82,7 @@ export default function MapPage() {
   const [selectedTravelModes, setSelectedTravelModes] = useState<TravelMode[]>([]); // 默认显示所有出行方式
   const [showAIRecommendation, setShowAIRecommendation] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const filteredMarkers = selectedType === 'all' 
     ? sampleMarkers 
@@ -115,6 +116,12 @@ export default function MapPage() {
   const handleRouteClick = (route: Route) => {
     setSelectedRoute(route);
     console.log('选择路线:', route);
+  };
+
+  // 处理位置更新
+  const handleLocationUpdate = (location: { lat: number; lng: number }) => {
+    setCurrentLocation(location);
+    console.log('位置已更新:', location);
   };
 
   // 出行方式选项
@@ -339,15 +346,46 @@ export default function MapPage() {
 
       {/* 地图容器 */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <Map
-          markers={filteredMarkers}
-          enablePOILoading={enablePOILoading}
-          enableRouteLoading={enableRouteLoading}
-          selectedPOITypes={selectedPOITypes}
-          selectedTravelModes={selectedTravelModes}
-          onRouteClick={handleRouteClick}
-        />
+        <div className="h-[600px] w-full">
+          <Map
+            markers={filteredMarkers}
+            enablePOILoading={enablePOILoading}
+            enableRouteLoading={enableRouteLoading}
+            selectedPOITypes={selectedPOITypes}
+            selectedTravelModes={selectedTravelModes}
+            onRouteClick={handleRouteClick}
+            onLocationUpdate={handleLocationUpdate}
+          />
+        </div>
       </div>
+
+      {/* 位置信息面板 */}
+      {currentLocation && (
+        <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+          <h3 className="text-xl font-bold mb-4">📍 当前位置信息</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-semibold mb-2">坐标信息</h4>
+              <p><strong>纬度:</strong> {currentLocation.lat.toFixed(6)}</p>
+              <p><strong>经度:</strong> {currentLocation.lng.toFixed(6)}</p>
+              <p><strong>精度:</strong> 高精度定位</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">操作</h4>
+              <button
+                onClick={() => {
+                  // 复制坐标到剪贴板
+                  navigator.clipboard.writeText(`${currentLocation.lat}, ${currentLocation.lng}`);
+                  alert('坐标已复制到剪贴板');
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+              >
+                复制坐标
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 路线详情面板 */}
       {selectedRoute && (

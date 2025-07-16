@@ -54,16 +54,21 @@ export default function AIPage() {
         conversationId: 'ai-page-conversation'
       });
 
+      console.log('AI服务响应:', response);
+      
       if (response.success && response.data) {
+        console.log('AI响应数据:', response.data);
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: response.data.content,
           isUser: false,
-          timestamp: new Date(response.data.timestamp),
+          timestamp: response.data.timestamp ? new Date(response.data.timestamp) : new Date(),
           sources: response.data.sources
         };
+        console.log('创建的AI消息:', aiMessage);
         setMessages(prev => [...prev, aiMessage]);
       } else {
+        console.log('AI服务返回错误:', response);
         // 错误处理
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
