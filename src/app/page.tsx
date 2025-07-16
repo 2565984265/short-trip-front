@@ -27,24 +27,13 @@ export default function Home() {
             <TertiaryButton href="/ai/assistant">AI助手</TertiaryButton>
           </div>
           
-          {/* 用户状态提示 */}
+          {/* 用户状态提示 - 仅对未登录用户显示 */}
           {!isAuthenticated && (
             <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-center">
                 💡 登录后可以保存个人偏好、收藏攻略、参与社区讨论
                 <Link href="/login" className="ml-2 text-blue-600 hover:text-blue-800 font-medium underline">
                   立即登录
-                </Link>
-              </p>
-            </div>
-          )}
-          
-          {isAuthenticated && (
-            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-800 text-center">
-                👋 欢迎回来，{user?.username}！ 
-                <Link href="/profile" className="ml-2 text-green-600 hover:text-green-800 font-medium underline">
-                  查看个人资料
                 </Link>
               </p>
             </div>

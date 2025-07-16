@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect, useRef } from 'react';
+import { Bars3Icon, XMarkIcon, ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline';
 import { useUser } from '@/contexts/UserContext';
+import { getAvatarUrl } from '@/utils/avatar';
 
 interface NavLinkProps {
   href: string;
@@ -44,6 +45,9 @@ export default function Navbar() {
   const { user, logout, isAuthenticated } = useUser();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 调试信息
   console.log('Navbar render - isAuthenticated:', isAuthenticated, 'user:', user);
@@ -60,6 +64,32 @@ export default function Navbar() {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 处理下拉菜单的延迟关闭
+  const handleMouseEnter = () => {
+    // 清除之前的延迟关闭定时器
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+    setUserDropdownOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    // 设置延迟关闭定时器，1秒后关闭
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setUserDropdownOpen(false);
+    }, 1000);
+  };
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (dropdownTimeoutRef.current) {
+        clearTimeout(dropdownTimeoutRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -90,14 +120,79 @@ export default function Navbar() {
             
             {/* 用户认证状态 */}
             {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">欢迎，{user?.nickname || user?.username}</span>
-                <button
-                  onClick={logout}
-                  className="text-sm text-red-600 hover:text-red-700 font-medium"
+              <div className="relative" ref={userDropdownRef}>
+                <div
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  className="relative"
                 >
-                  退出
+                  <button
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                  >
+                  {/* 用户头像 */}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                    {user?.avatar && getAvatarUrl(user.avatar) ? (
+                      <img 
+                        src={getAvatarUrl(user.avatar)!} 
+                        alt="用户头像" 
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                          // 如果头像加载失败，隐藏图片显示默认图标
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : null}
+                    {(!user?.avatar || user.avatar === '' || !getAvatarUrl(user.avatar)) && (
+                      <UserIcon className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                  
+                  {/* 用户昵称 */}
+                  <span className="text-sm font-medium text-gray-700">
+                    {user?.nickname || user?.username}
+                  </span>
+                  
+                  {/* 下拉箭头 */}
+                  <ChevronDownIcon 
+                    className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                      userDropdownOpen ? 'rotate-180' : ''
+                    }`} 
+                  />
                 </button>
+
+                {/* 下拉菜单 */}
+                <div 
+                  className={`absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 transition-all duration-300 ${
+                    userDropdownOpen 
+                      ? 'opacity-100 translate-y-0 pointer-events-auto' 
+                      : 'opacity-0 -translate-y-2 pointer-events-none'
+                  }`}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                    <Link
+                      href="/profile"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => setUserDropdownOpen(false)}
+                    >
+                      <UserIcon className="w-4 h-4 mr-3" />
+                      查看个人资料
+                    </Link>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setUserDropdownOpen(false);
+                      }}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      退出登录
+                    </button>
+                  </div>
+                  </div>
               </div>
             ) : (
               <Link
@@ -139,16 +234,54 @@ export default function Navbar() {
             <div className="pt-4 border-t border-gray-200">
               {isAuthenticated ? (
                 <div className="px-4 py-2">
-                  <div className="text-sm text-gray-600 mb-2">欢迎，{user?.nickname || user?.username}</div>
-                  <button
-                    onClick={() => {
-                      logout();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
-                  >
-                    退出
-                  </button>
+                  <div className="flex items-center space-x-3 mb-3">
+                    {/* 用户头像 */}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                      {user?.avatar && getAvatarUrl(user.avatar) ? (
+                        <img 
+                          src={getAvatarUrl(user.avatar)!} 
+                          alt="用户头像" 
+                          className="w-10 h-10 rounded-full object-cover"
+                          onError={(e) => {
+                            // 如果头像加载失败，隐藏图片显示默认图标
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      {(!user?.avatar || user.avatar === '' || !getAvatarUrl(user.avatar)) && (
+                        <UserIcon className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-700">
+                        {user?.nickname || user?.username}
+                      </div>
+                      <div className="text-xs text-gray-500">已登录</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Link
+                      href="/profile"
+                      className="flex items-center py-2 px-4 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <UserIcon className="w-4 h-4 mr-3" />
+                      查看个人资料
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center w-full py-2 px-4 text-sm text-red-600 hover:bg-red-50 rounded-md"
+                    >
+                      <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      退出登录
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <Link
