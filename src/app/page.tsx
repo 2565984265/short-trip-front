@@ -1,8 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useUser } from '@/contexts/UserContext';
 
 export default function Home() {
+  const { user, isAuthenticated } = useUser();
+  
+  // 调试信息
+  console.log('Home page render - isAuthenticated:', isAuthenticated, 'user:', user);
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 pt-28 pb-16">
@@ -20,6 +26,29 @@ export default function Home() {
             <TertiaryButton href="/community">加入社区</TertiaryButton>
             <TertiaryButton href="/ai/assistant">AI助手</TertiaryButton>
           </div>
+          
+          {/* 用户状态提示 */}
+          {!isAuthenticated && (
+            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 text-center">
+                💡 登录后可以保存个人偏好、收藏攻略、参与社区讨论
+                <Link href="/login" className="ml-2 text-blue-600 hover:text-blue-800 font-medium underline">
+                  立即登录
+                </Link>
+              </p>
+            </div>
+          )}
+          
+          {isAuthenticated && (
+            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 text-center">
+                👋 欢迎回来，{user?.username}！ 
+                <Link href="/profile" className="ml-2 text-green-600 hover:text-green-800 font-medium underline">
+                  查看个人资料
+                </Link>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 功能特色 - 增强卡片设计和交互效果 */}
@@ -91,7 +120,14 @@ export default function Home() {
 }
 
 // 导航链接组件
-function NavLink({ href, children, primary = false, secondary = false }) {
+interface NavLinkProps {
+  href: string;
+  children: React.ReactNode;
+  primary?: boolean;
+  secondary?: boolean;
+}
+
+function NavLink({ href, children, primary = false, secondary = false }: NavLinkProps) {
   return (
     <Link
       href={href}
@@ -108,7 +144,14 @@ function NavLink({ href, children, primary = false, secondary = false }) {
 }
 
 // 移动端导航链接
-function MobileNavLink({ href, children, primary = false, secondary = false }) {
+interface MobileNavLinkProps {
+  href: string;
+  children: React.ReactNode;
+  primary?: boolean;
+  secondary?: boolean;
+}
+
+function MobileNavLink({ href, children, primary = false, secondary = false }: MobileNavLinkProps) {
   return (
     <Link
       href={href}
@@ -118,7 +161,6 @@ function MobileNavLink({ href, children, primary = false, secondary = false }) {
         ? 'bg-purple-600 text-white'
         : 'text-gray-700 hover:bg-gray-100'}
       `}
-      onClick={() => setMobileMenuOpen(false)}
     >
       {children}
     </Link>
@@ -126,7 +168,13 @@ function MobileNavLink({ href, children, primary = false, secondary = false }) {
 }
 
 // 主要按钮组件
-function PrimaryButton({ href, children, size = 'md' }) {
+interface PrimaryButtonProps {
+  href: string;
+  children: React.ReactNode;
+  size?: 'md' | 'lg';
+}
+
+function PrimaryButton({ href, children, size = 'md' }: PrimaryButtonProps) {
   const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5';
   const sizes = {
     md: 'px-8 py-4 text-lg',
@@ -141,7 +189,12 @@ function PrimaryButton({ href, children, size = 'md' }) {
 }
 
 // 次要按钮组件
-function SecondaryButton({ href, children }) {
+interface SecondaryButtonProps {
+  href: string;
+  children: React.ReactNode;
+}
+
+function SecondaryButton({ href, children }: SecondaryButtonProps) {
   return (
     <Link
       href={href}
@@ -153,7 +206,12 @@ function SecondaryButton({ href, children }) {
 }
 
 // 第三按钮组件
-function TertiaryButton({ href, children }) {
+interface TertiaryButtonProps {
+  href: string;
+  children: React.ReactNode;
+}
+
+function TertiaryButton({ href, children }: TertiaryButtonProps) {
   return (
     <Link
       href={href}
@@ -165,7 +223,15 @@ function TertiaryButton({ href, children }) {
 }
 
 // 功能特色卡片组件
-function FeatureCard({ icon, title, desc, href, color }) {
+interface FeatureCardProps {
+  icon: string;
+  title: string;
+  desc: string;
+  href: string;
+  color: string;
+}
+
+function FeatureCard({ icon, title, desc, href, color }: FeatureCardProps) {
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group">
       <div className={`w-14 h-14 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center mb-5 text-white text-2xl shadow-md`}>
@@ -181,7 +247,13 @@ function FeatureCard({ icon, title, desc, href, color }) {
 }
 
 // 出行方式卡片组件
-function TravelModeCard({ icon, name, desc }) {
+interface TravelModeCardProps {
+  icon: string;
+  name: string;
+  desc: string;
+}
+
+function TravelModeCard({ icon, name, desc }: TravelModeCardProps) {
   return (
     <div className="bg-white rounded-xl p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-2 hover:border-blue-200 border border-transparent">
       <div className="text-4xl mb-3">{icon}</div>
@@ -192,7 +264,13 @@ function TravelModeCard({ icon, name, desc }) {
 }
 
 // 步骤卡片组件
-function StepCard({ step, title, desc }) {
+interface StepCardProps {
+  step: string;
+  title: string;
+  desc: string;
+}
+
+function StepCard({ step, title, desc }: StepCardProps) {
   return (
     <div className="text-center">
       <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-5 text-white text-2xl font-bold shadow-md">
@@ -205,7 +283,12 @@ function StepCard({ step, title, desc }) {
 }
 
 // 页脚链接组件
-function FooterLink({ href, children }) {
+interface FooterLinkProps {
+  href: string;
+  children: React.ReactNode;
+}
+
+function FooterLink({ href, children }: FooterLinkProps) {
   return (
     <Link
       href={href}
@@ -217,7 +300,11 @@ function FooterLink({ href, children }) {
 }
 
 //  section标题组件
-function SectionTitle({ children }) {
+interface SectionTitleProps {
+  children: React.ReactNode;
+}
+
+function SectionTitle({ children }: SectionTitleProps) {
   return (
     <h2 className="text-3xl font-bold text-gray-900 text-center mb-10">
       {children}

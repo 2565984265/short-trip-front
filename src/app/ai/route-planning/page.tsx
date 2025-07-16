@@ -2,166 +2,8 @@
 
 import React, { useState } from 'react';
 import type { AIRouteRequest, AIRouteRecommendation as AIRouteRecommendationType } from '@/types/ai';
+import { AIService, RouteRecommendationRequest } from '@/services/ai';
 import AIRouteRecommendation from '@/components/ai/AIRouteRecommendation';
-
-// 模拟AI路线推荐结果
-const mockRecommendations: AIRouteRecommendationType[] = [
-  {
-    id: '1',
-    title: '张家界三日游完美路线',
-    description: '结合张家界国家森林公园、天门山和黄龙洞的经典三日游路线，适合家庭出游。',
-    route: {
-      coordinates: [
-        [29.3271, 110.4792],
-        [29.0556, 110.4792],
-        [29.3271, 110.4792],
-      ],
-      totalDistance: 120,
-      estimatedTime: 72,
-      difficulty: 'medium',
-      transportation: 'car',
-    },
-    waypoints: [
-      {
-        id: '1',
-        name: '张家界国家森林公园',
-        type: 'scenic',
-        coordinates: [29.3271, 110.4792],
-        description: '世界自然遗产，以奇特的石柱群闻名',
-        estimatedTime: 240,
-        rating: 4.8,
-        tips: ['建议提前预订门票', '准备雨具'],
-      },
-      {
-        id: '2',
-        name: '天门山',
-        type: 'scenic',
-        coordinates: [29.0556, 110.4792],
-        description: '天门山玻璃栈道，挑战你的勇气',
-        estimatedTime: 180,
-        rating: 4.7,
-        tips: ['恐高者慎入', '注意安全'],
-      },
-      {
-        id: '3',
-        name: '黄龙洞',
-        type: 'scenic',
-        coordinates: [29.3271, 110.4792],
-        description: '亚洲最大的溶洞之一',
-        estimatedTime: 120,
-        rating: 4.6,
-        tips: ['洞内较凉，带外套'],
-      },
-    ],
-    highlights: ['玻璃栈道', '天门山', '黄龙洞', '袁家界', '金鞭溪'],
-    tips: [
-      '建议提前预订门票，旺季需要提前3-7天',
-      '准备雨具，张家界多雨',
-      '穿舒适的运动鞋，景区内步行距离较长',
-      '带足饮用水和零食',
-      '注意防晒，景区内遮阳设施有限',
-    ],
-    warnings: [
-      '玻璃栈道有恐高症者慎入',
-      '景区内注意安全，不要攀爬危险区域',
-      '雨季路滑，注意防滑',
-    ],
-    equipment: [
-      {
-        category: 'clothing',
-        name: '舒适运动鞋',
-        description: '防滑、透气、舒适的运动鞋',
-        isRequired: true,
-        price: 200,
-      },
-      {
-        category: 'gear',
-        name: '雨衣或雨伞',
-        description: '防雨装备，张家界多雨',
-        isRequired: true,
-        price: 30,
-      },
-      {
-        category: 'electronics',
-        name: '相机',
-        description: '记录美好瞬间',
-        isRequired: false,
-        price: 3000,
-      },
-    ],
-    weatherAdvice: '张家界春季多雨，建议携带雨具。夏季炎热，注意防晒。秋季天气最佳，是旅游的黄金季节。',
-    bestTime: '3-5月和9-11月，避开暑假和国庆假期',
-    confidence: 0.92,
-  },
-  {
-    id: '2',
-    title: '莫干山徒步一日游',
-    description: '杭州周边莫干山徒步路线，享受竹林清风，体验江南山水的诗意。',
-    route: {
-      coordinates: [
-        [30.5444, 119.8644],
-        [30.5444, 119.8644],
-      ],
-      totalDistance: 8,
-      estimatedTime: 4,
-      difficulty: 'easy',
-      transportation: 'walking',
-    },
-    waypoints: [
-      {
-        id: '1',
-        name: '竹林小径',
-        type: 'scenic',
-        coordinates: [30.5444, 119.8644],
-        description: '漫步竹林，感受清风徐来',
-        estimatedTime: 60,
-        rating: 4.5,
-        tips: ['穿舒适鞋子', '带足饮用水'],
-      },
-      {
-        id: '2',
-        name: '观景台',
-        type: 'scenic',
-        coordinates: [30.5444, 119.8644],
-        description: '俯瞰莫干山全景',
-        estimatedTime: 30,
-        rating: 4.6,
-        tips: ['最佳观景时间：日出或日落'],
-      },
-    ],
-    highlights: ['竹林小径', '观景台', '古村落', '清新空气'],
-    tips: [
-      '穿舒适鞋子，带足饮用水',
-      '建议早上出发，避开正午高温',
-      '可以带些零食，在观景台休息',
-      '注意天气，雨天路滑',
-    ],
-    warnings: [
-      '注意天气变化',
-      '不要偏离主路',
-      '带好垃圾袋，保护环境',
-    ],
-    equipment: [
-      {
-        category: 'clothing',
-        name: '舒适徒步鞋',
-        description: '防滑、透气的徒步鞋',
-        isRequired: true,
-        price: 150,
-      },
-      {
-        category: 'gear',
-        name: '水壶',
-        description: '带足饮用水',
-        isRequired: true,
-        price: 50,
-      },
-    ],
-    weatherAdvice: '春秋季节最适合徒步，夏季炎热，冬季可能有雪。',
-    bestTime: '3-5月和9-11月',
-    confidence: 0.88,
-  },
-];
 
 export default function AIRoutePlanningPage() {
   const [routeRequest, setRouteRequest] = useState<AIRouteRequest>({
@@ -184,31 +26,67 @@ export default function AIRoutePlanningPage() {
     },
   });
 
-  const [recommendations, setRecommendations] = useState<AIRouteRecommendationType[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'form' | 'results'>('form');
+  const [error, setError] = useState<string | null>(null);
+  const [aiService] = useState(() => AIService.getInstance());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
+    setError(null);
 
-    // 模拟AI生成延迟
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // 构建AI服务请求
+      const request: RouteRecommendationRequest = {
+        startLocation: routeRequest.startLocation,
+        endLocation: routeRequest.endLocation || undefined,
+        duration: Math.ceil(routeRequest.duration / 24), // 转换为天数
+        travelType: routeRequest.travelType,
+        interests: routeRequest.preferences.interests,
+        budget: routeRequest.preferences.budget,
+        season: getCurrentSeason()
+      };
 
-    // 模拟AI推荐结果
-    setRecommendations(mockRecommendations);
-    setActiveTab('results');
-    setIsGenerating(false);
+      // 调用AI服务
+      const response = await aiService.getRouteRecommendations(request);
+      
+      if (response.success && response.data) {
+        setRecommendations([response.data]);
+        setActiveTab('results');
+      } else {
+        setError(response.message || '获取推荐失败，请稍后再试');
+      }
+    } catch (error) {
+      console.error('路线推荐请求失败:', error);
+      setError('网络错误，请检查网络连接后重试');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleSave = (recommendation: AIRouteRecommendationType) => {
+  const getCurrentSeason = () => {
+    const month = new Date().getMonth() + 1;
+    if (month >= 3 && month <= 5) return '春季';
+    if (month >= 6 && month <= 8) return '夏季';
+    if (month >= 9 && month <= 11) return '秋季';
+    return '冬季';
+  };
+
+  const handleSave = (recommendation: any) => {
     console.log('保存路线:', recommendation);
     // 这里可以添加保存到用户收藏的逻辑
   };
 
-  const handleShare = (recommendation: AIRouteRecommendationType) => {
+  const handleShare = (recommendation: any) => {
     console.log('分享路线:', recommendation);
     // 这里可以添加分享逻辑
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    handleSubmit({ preventDefault: () => {} } as React.FormEvent);
   };
 
   return (
@@ -244,6 +122,30 @@ export default function AIRoutePlanningPage() {
           </button>
         </div>
 
+        {/* 错误提示 */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+              <div className="ml-auto">
+                <button
+                  onClick={handleRetry}
+                  className="text-sm text-red-600 hover:text-red-800 font-medium"
+                >
+                  重试
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'form' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -276,30 +178,29 @@ export default function AIRoutePlanningPage() {
                 </div>
               </div>
 
+              {/* 时间和出行方式 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    出行时间（小时）*
+                    出行时间 (小时)
                   </label>
                   <input
                     type="number"
+                    min="1"
+                    max="720"
                     value={routeRequest.duration}
                     onChange={(e) => setRouteRequest(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    min="1"
-                    max="168"
-                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    出行方式 *
+                    出行方式
                   </label>
                   <select
                     value={routeRequest.travelType}
                     onChange={(e) => setRouteRequest(prev => ({ ...prev, travelType: e.target.value as any }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
                   >
                     <option value="walking">徒步</option>
                     <option value="cycling">骑行</option>
@@ -311,8 +212,9 @@ export default function AIRoutePlanningPage() {
               </div>
 
               {/* 偏好设置 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">偏好设置</h3>
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">偏好设置</h3>
+                
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -320,8 +222,8 @@ export default function AIRoutePlanningPage() {
                     </label>
                     <select
                       value={routeRequest.preferences.difficulty}
-                      onChange={(e) => setRouteRequest(prev => ({ 
-                        ...prev, 
+                      onChange={(e) => setRouteRequest(prev => ({
+                        ...prev,
                         preferences: { ...prev.preferences, difficulty: e.target.value as any }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -331,14 +233,15 @@ export default function AIRoutePlanningPage() {
                       <option value="hard">困难</option>
                     </select>
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       预算范围
                     </label>
                     <select
                       value={routeRequest.preferences.budget}
-                      onChange={(e) => setRouteRequest(prev => ({ 
-                        ...prev, 
+                      onChange={(e) => setRouteRequest(prev => ({
+                        ...prev,
                         preferences: { ...prev.preferences, budget: e.target.value as any }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -348,87 +251,31 @@ export default function AIRoutePlanningPage() {
                       <option value="high">高端</option>
                     </select>
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      最大距离（公里）
+                      兴趣标签
                     </label>
                     <input
-                      type="number"
-                      value={routeRequest.constraints?.maxDistance}
-                      onChange={(e) => setRouteRequest(prev => ({ 
-                        ...prev, 
-                        constraints: { ...prev.constraints, maxDistance: parseInt(e.target.value) }
+                      type="text"
+                      placeholder="例如：摄影,美食,历史"
+                      onChange={(e) => setRouteRequest(prev => ({
+                        ...prev,
+                        preferences: { 
+                          ...prev.preferences, 
+                          interests: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                        }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="1"
-                      max="5000"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* 兴趣偏好 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  兴趣偏好（可选）
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {['山水', '古镇', '海边', '森林', '草原', '沙漠', '雪山', '湖泊'].map((interest) => (
-                    <label key={interest} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={routeRequest.preferences.interests?.includes(interest)}
-                        onChange={(e) => {
-                          const currentInterests = routeRequest.preferences.interests || [];
-                          const newInterests = e.target.checked
-                            ? [...currentInterests, interest]
-                            : currentInterests.filter(i => i !== interest);
-                          setRouteRequest(prev => ({
-                            ...prev,
-                            preferences: { ...prev.preferences, interests: newInterests }
-                          }));
-                        }}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700">{interest}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* 其他选项 */}
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={routeRequest.preferences.avoidHighways}
-                    onChange={(e) => setRouteRequest(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, avoidHighways: e.target.checked }
-                    }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">避开高速公路</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={routeRequest.preferences.includeCamping}
-                    onChange={(e) => setRouteRequest(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, includeCamping: e.target.checked }
-                    }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">包含露营点</span>
-                </label>
-              </div>
-
-              {/* 提交按钮 */}
               <div className="flex justify-center">
                 <button
                   type="submit"
-                  disabled={isGenerating}
+                  disabled={isGenerating || !routeRequest.startLocation.trim()}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                 >
                   {isGenerating ? (
@@ -451,13 +298,67 @@ export default function AIRoutePlanningPage() {
         {activeTab === 'results' && (
           <div className="space-y-6">
             {recommendations.length > 0 ? (
-              recommendations.map((recommendation) => (
-                <AIRouteRecommendation
-                  key={recommendation.id}
-                  recommendation={recommendation}
-                  onSave={handleSave}
-                  onShare={handleShare}
-                />
+              recommendations.map((recommendation, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="p-6">
+                    {/* 推荐头部 */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-lg">🎯</span>
+                          <span className="text-sm text-gray-500">
+                            生成时间: {new Date(recommendation.generatedAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-sm font-medium text-gray-700">推荐度:</span>
+                            <span className="text-sm font-semibold text-green-600">
+                              {recommendation.confidence ? (recommendation.confidence * 100).toFixed(0) : '85'}%
+                            </span>
+                            <span className="text-xs px-2 py-1 rounded-full text-green-600 bg-green-100">
+                              推荐
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSave(recommendation)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        保存路线
+                      </button>
+                    </div>
+
+                    {/* AI分析内容 */}
+                    <div className="mb-4">
+                      <div className="prose prose-sm max-w-none">
+                        <div className="whitespace-pre-wrap text-gray-700">
+                          {recommendation.aiAnalysis}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 数据来源 */}
+                    {recommendation.sources && recommendation.sources.length > 0 && (
+                      <div className="border-t border-gray-200 pt-4">
+                        <details className="text-sm text-gray-600">
+                          <summary className="cursor-pointer hover:text-blue-600 transition-colors font-medium">
+                            数据来源 ({recommendation.sources.length})
+                          </summary>
+                          <div className="mt-2 space-y-1">
+                            {recommendation.sources.map((source: string, index: number) => (
+                              <div key={index} className="text-xs text-gray-500 flex items-start space-x-2">
+                                <span className="text-blue-500 mt-1">•</span>
+                                <span>{source}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))
             ) : (
               <div className="bg-white rounded-lg shadow-sm p-12 text-center">

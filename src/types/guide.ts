@@ -1,131 +1,75 @@
 // 攻略内容系统类型定义
 
 export interface Guide {
-  id: string;
+  id: number;
   title: string;
-  description: string;
-  author: {
-    id: string;
-    name: string;
-    avatar?: string;
-    isCreator: boolean;
-  };
-  route: {
-    startLocation: string;
-    endLocation: string;
-    waypoints: Waypoint[];
-    totalDistance: number; // 公里
-    estimatedTime: number; // 小时
-    difficulty: 'easy' | 'medium' | 'hard';
-    transportation: 'walking' | 'cycling' | 'motorcycle' | 'car' | 'rv';
-  };
-  content: {
-    overview: string;
-    highlights: string[];
-    itinerary: ItineraryDay[];
-    tips: string[];
-    equipment: Equipment[];
-    warnings: string[];
-  };
-  media: {
-    coverImage: string;
-    images: string[];
-    videos: Video[];
-  };
+  content: string;
+  author: string;
+  summary: string;
   tags: string[];
-  rating: number;
-  reviewCount: number;
-  createdAt: string;
-  updatedAt: string;
+  coverImage: string;
+  images: string[];
+  difficultyLevel: string;
+  difficultyLevelDisplay: string;
+  estimatedTime: string;
+  estimatedCost: string;
+  destination: string;
+  season: string;
+  transportMode: string;
+  isFeatured: boolean;
   isPublished: boolean;
   viewCount: number;
   likeCount: number;
-  bookmarkCount: number;
-}
-
-export interface Waypoint {
-  id: string;
-  name: string;
-  type: 'scenic' | 'restaurant' | 'hotel' | 'camping' | 'supply' | 'other';
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  description?: string;
-  estimatedTime: number; // 停留时间（分钟）
-}
-
-export interface ItineraryDay {
-  day: number;
-  title: string;
-  description: string;
-  waypoints: string[]; // waypoint IDs
-  estimatedTime: number; // 小时
-  accommodation?: string;
-  meals?: string[];
-}
-
-export interface Equipment {
-  category: 'clothing' | 'gear' | 'electronics' | 'food' | 'safety' | 'other';
-  name: string;
-  description: string;
-  isRequired: boolean;
-  price?: number;
-  purchaseLink?: string;
-}
-
-export interface Video {
-  platform: 'douyin' | 'xiaohongshu' | 'youtube' | 'other';
-  url: string;
-  title: string;
-  description?: string;
-  thumbnail?: string;
+  favoriteCount: number;
+  commentCount: number;
+  rating: number;
+  ratingCount: number;
+  createTime: string;
+  updateTime: string;
 }
 
 export interface GuideFilter {
-  transportation?: Guide['route']['transportation'];
-  difficulty?: Guide['route']['difficulty'];
-  duration?: {
-    min?: number;
-    max?: number;
-  };
-  distance?: {
-    min?: number;
-    max?: number;
-  };
-  tags?: string[];
-  location?: string;
+  difficultyLevel?: string;
+  destination?: string;
+  season?: string;
+  transportMode?: string;
+  keyword?: string;
+  sortBy?: 'createTime' | 'viewCount' | 'rating';
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface GuideSearchParams {
-  query?: string;
-  filter?: GuideFilter;
-  sortBy?: 'rating' | 'createdAt' | 'viewCount' | 'distance';
-  sortOrder?: 'asc' | 'desc';
   page?: number;
-  limit?: number;
+  size?: number;
+  difficultyLevel?: string;
+  destination?: string;
+  season?: string;
+  transportMode?: string;
+  keyword?: string;
+  sortBy?: string;
+  sortDir?: string;
 }
 
-export interface CreateGuideData {
-  title: string;
-  description: string;
-  route: Omit<Guide['route'], 'waypoints'> & {
-    waypoints: Omit<Waypoint, 'id'>[];
-  };
-  content: {
-    overview: string;
-    highlights: string[];
-    itinerary: Omit<ItineraryDay, 'waypoints'> & {
-      waypoints: string[]; // waypoint names
-    }[];
-    tips: string[];
-    equipment: Omit<Equipment, 'id'>[];
-    warnings: string[];
-  };
-  media: {
-    coverImage: string;
-    images: string[];
-    videos: Omit<Video, 'id'>[];
-  };
-  tags: string[];
-} 
+export const DIFFICULTY_LEVELS = [
+  { value: 'EASY', label: '简单', color: 'bg-green-100 text-green-800' },
+  { value: 'MODERATE', label: '中等', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'DIFFICULT', label: '困难', color: 'bg-orange-100 text-orange-800' },
+  { value: 'EXPERT', label: '专家', color: 'bg-red-100 text-red-800' }
+];
+
+export const SEASONS = [
+  { value: '春季', label: '春季' },
+  { value: '夏季', label: '夏季' },
+  { value: '秋季', label: '秋季' },
+  { value: '冬季', label: '冬季' },
+  { value: '四季皆宜', label: '四季皆宜' }
+];
+
+export const TRANSPORT_MODES = [
+  { value: '自驾', label: '自驾' },
+  { value: '飞机', label: '飞机' },
+  { value: '高铁', label: '高铁' },
+  { value: '公交', label: '公交' },
+  { value: '步行', label: '步行' },
+  { value: '包车', label: '包车' }
+]; 

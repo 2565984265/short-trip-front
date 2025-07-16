@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useUser } from '@/contexts/UserContext';
 
 interface NavLinkProps {
   href: string;
@@ -40,8 +41,12 @@ const MobileNavLink = ({ href, children, onClick }: MobileNavLinkProps) => (
 );
 
 export default function Navbar() {
+  const { user, logout, isAuthenticated } = useUser();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // 调试信息
+  console.log('Navbar render - isAuthenticated:', isAuthenticated, 'user:', user);
 
   // 监听滚动事件，改变导航栏样式
   useEffect(() => {
@@ -79,7 +84,29 @@ export default function Navbar() {
             <NavLink href="/">首页</NavLink>
             <NavLink href="/map">地图</NavLink>
             <NavLink href="/guides">指南</NavLink>
+            <NavLink href="/community">社区</NavLink>
+            <NavLink href="/ai">AI助手</NavLink>
             <NavLink href="/planner" isPrimary>行程规划</NavLink>
+            
+            {/* 用户认证状态 */}
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">欢迎，{user?.nickname || user?.username}</span>
+                <button
+                  onClick={logout}
+                  className="text-sm text-red-600 hover:text-red-700 font-medium"
+                >
+                  退出
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                登录
+              </Link>
+            )}
           </nav>
 
           {/* 移动端菜单按钮 */}
@@ -104,7 +131,35 @@ export default function Navbar() {
             <MobileNavLink href="/" onClick={() => setMobileMenuOpen(false)}>首页</MobileNavLink>
             <MobileNavLink href="/map" onClick={() => setMobileMenuOpen(false)}>地图</MobileNavLink>
             <MobileNavLink href="/guides" onClick={() => setMobileMenuOpen(false)}>指南</MobileNavLink>
+            <MobileNavLink href="/community" onClick={() => setMobileMenuOpen(false)}>社区</MobileNavLink>
+            <MobileNavLink href="/ai" onClick={() => setMobileMenuOpen(false)}>AI助手</MobileNavLink>
             <MobileNavLink href="/planner" onClick={() => setMobileMenuOpen(false)}>行程规划</MobileNavLink>
+            
+            {/* 移动端用户认证状态 */}
+            <div className="pt-4 border-t border-gray-200">
+              {isAuthenticated ? (
+                <div className="px-4 py-2">
+                  <div className="text-sm text-gray-600 mb-2">欢迎，{user?.nickname || user?.username}</div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    退出
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="block py-2 px-4 text-blue-600 hover:bg-blue-50 rounded-md"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  登录
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -6,11 +6,24 @@ export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  sources?: string[];
+  intent?: string;
   metadata?: {
     location?: string;
     travelType?: string;
     duration?: number;
   };
+}
+
+// AI响应类型
+export interface AIResponse {
+  id: string;
+  content: string;
+  timestamp: Date;
+  sources?: string[];
+  intent?: string;
+  confidence?: number;
+  metadata?: Record<string, any>;
 }
 
 // AI对话会话

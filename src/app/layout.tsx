@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/common/Navbar';
 import Footer from '@/components/common/Footer';
+import GlobalAIAssistant from '@/components/common/GlobalAIAssistant';
+import { UserProvider } from '@/contexts/UserContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -51,11 +53,14 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <Navbar />
-        <main className="pt-24 pb-16 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-          {children}
-        </main>
-        <Footer />
+        <UserProvider>
+          <Navbar />
+          <main className="pt-24 pb-16 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+            {children}
+          </main>
+          <Footer />
+          <GlobalAIAssistant />
+        </UserProvider>
       </body>
     </html>
   );

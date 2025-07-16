@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@next/swc-darwin-arm64": "^15.4.1",
     "@types/leaflet": "^1.9.20",
+    "date-fns": "^4.1.0",
     "leaflet": "^1.9.4",
     "next": "13.4.19",
     "react": "18.2.0",

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AIMessage, AIConversation, AIAssistantState } from '@/types/ai';
+import { AIService } from '@/services/ai';
 import AIMessageItem from './AIMessageItem';
 import AIInputBox from './AIInputBox';
 import AIQuickActions from './AIQuickActions';
@@ -40,6 +41,8 @@ export default function AIAssistant({
     isProcessing: false,
   });
 
+  const [aiService] = useState(() => AIService.getInstance());
+  const [currentEventSource, setCurrentEventSource] = useState<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 自动滚动到底部
@@ -47,9 +50,25 @@ export default function AIAssistant({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation.messages]);
 
+  // 组件卸载时断开连接
+  useEffect(() => {
+    return () => {
+      if (currentEventSource) {
+        currentEventSource.close();
+      }
+      aiService.disconnect();
+    };
+  }, [aiService, currentEventSource]);
+
   // 处理发送消息
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
+
+    // 停止之前的流式响应
+    if (currentEventSource) {
+      currentEventSource.close();
+      setCurrentEventSource(null);
+    }
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
@@ -65,12 +84,12 @@ export default function AIAssistant({
       updatedAt: new Date(),
     }));
 
-    // 设置AI正在输入状态
+    // 设置AI正在处理状态
     setAssistantState(prev => ({ ...prev, isTyping: true, isProcessing: true }));
 
     try {
-      // 模拟AI响应
-      await simulateAIResponse(content);
+      // 使用流式响应
+      await handleStreamResponse(content);
     } catch (error) {
       console.error('AI响应错误:', error);
       // 添加错误消息
@@ -90,45 +109,106 @@ export default function AIAssistant({
     }
   };
 
-  // 模拟AI响应
-  const simulateAIResponse = async (userInput: string) => {
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+  // 处理流式响应
+  const handleStreamResponse = async (query: string) => {
+    let aiMessageId: string;
+    let fullContent = '';
 
-    let response = '';
-    
-    // 简单的关键词匹配逻辑
-    if (userInput.includes('路线') || userInput.includes('规划') || userInput.includes('推荐')) {
-      response = `我来为你推荐一些精彩的路线！🎯\n\n请告诉我：\n• 你的出发地\n• 出行时间（几小时/几天）\n• 出行方式（徒步/骑行/自驾等）\n• 你喜欢的风景类型（山水/古镇/海边等）\n\n这样我就能为你量身定制完美的旅行路线了！`;
-    } else if (userInput.includes('天气') || userInput.includes('气候')) {
-      response = `🌤️ 天气信息很重要！\n\n请告诉我你要去的目的地和时间，我可以为你提供：\n• 实时天气状况\n• 未来几天的天气预报\n• 最佳出行时间建议\n• 天气相关的装备建议`;
-    } else if (userInput.includes('装备') || userInput.includes('准备') || userInput.includes('带什么')) {
-      response = `🎒 装备准备是成功旅行的关键！\n\n请告诉我：\n• 你的出行方式\n• 旅行时长\n• 目的地类型\n• 季节\n\n我会为你列出详细的装备清单，包括必需品和可选物品。`;
-    } else if (userInput.includes('安全') || userInput.includes('危险') || userInput.includes('注意')) {
-      response = `⚠️ 安全永远是第一位的！\n\n我可以为你提供：\n• 路线安全评估\n• 天气风险提醒\n• 紧急联系方式\n• 安全装备建议\n• 应急预案\n\n请告诉我你的具体行程，我会进行详细的安全分析。`;
-    } else if (userInput.includes('预算') || userInput.includes('花费') || userInput.includes('费用')) {
-      response = `💰 预算规划很重要！\n\n我可以帮你估算：\n• 交通费用\n• 住宿费用\n• 餐饮费用\n• 装备费用\n• 门票和活动费用\n\n请告诉我你的旅行计划，我会为你制定详细的预算方案。`;
-    } else {
-      response = `感谢你的提问！🤖\n\n我可以帮你：\n• 📍 规划个性化路线\n• 🌤️ 查询天气信息\n• 🎒 推荐装备清单\n• ⚠️ 提供安全建议\n• 💰 制定预算计划\n• 🏨 推荐住宿和餐厅\n\n请具体描述你的需求，我会为你提供专业的建议！`;
-    }
-
-    const aiMessage: AIMessage = {
+    // 创建占位符消息
+    const placeholderMessage: AIMessage = {
       id: Date.now().toString(),
       role: 'assistant',
-      content: response,
+      content: '',
       timestamp: new Date(),
     };
 
+    aiMessageId = placeholderMessage.id;
+
     setConversation(prev => ({
       ...prev,
-      messages: [...prev.messages, aiMessage],
+      messages: [...prev.messages, placeholderMessage],
       updatedAt: new Date(),
     }));
+
+    // 开始流式响应
+    const eventSource = aiService.streamMessage(
+      query,
+      // onMessage - 处理流式内容
+      (chunk: string) => {
+        fullContent += chunk;
+        setConversation(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => 
+            msg.id === aiMessageId 
+              ? { ...msg, content: fullContent }
+              : msg
+          ),
+          updatedAt: new Date(),
+        }));
+      },
+      // onComplete - 处理完成
+      (data: any) => {
+        console.log('流式响应完成:', data);
+        setConversation(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => 
+            msg.id === aiMessageId 
+              ? { 
+                  ...msg, 
+                  content: fullContent,
+                  sources: data.sources,
+                  intent: data.intent
+                }
+              : msg
+          ),
+          updatedAt: new Date(),
+        }));
+        setCurrentEventSource(null);
+      },
+      // onError - 处理错误
+      (error: string) => {
+        console.error('流式响应错误:', error);
+        setConversation(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => 
+            msg.id === aiMessageId 
+              ? { ...msg, content: fullContent || '抱歉，我遇到了一些问题。请稍后再试。' }
+              : msg
+          ),
+          updatedAt: new Date(),
+        }));
+        setCurrentEventSource(null);
+      }
+    );
+
+    setCurrentEventSource(eventSource);
   };
 
   // 处理快速操作
   const handleQuickAction = (action: string) => {
     handleSendMessage(action);
+  };
+
+  // 处理重新生成响应
+  const handleRegenerateResponse = async (messageId: string) => {
+    // 找到对应的用户消息
+    const messages = conversation.messages;
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    
+    if (messageIndex > 0) {
+      const userMessage = messages[messageIndex - 1];
+      if (userMessage.role === 'user') {
+        // 删除AI响应消息
+        setConversation(prev => ({
+          ...prev,
+          messages: prev.messages.filter(msg => msg.id !== messageId),
+          updatedAt: new Date(),
+        }));
+        
+        // 重新发送用户消息
+        await handleStreamResponse(userMessage.content);
+      }
+    }
   };
 
   if (isMinimized) {
@@ -188,6 +268,7 @@ export default function AIAssistant({
             key={message.id}
             message={message}
             isTyping={assistantState.isTyping && message.id === conversation.messages[conversation.messages.length - 1]?.id}
+            onRegenerate={message.role === 'assistant' ? () => handleRegenerateResponse(message.id) : undefined}
           />
         ))}
         <div ref={messagesEndRef} />

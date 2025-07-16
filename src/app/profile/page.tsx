@@ -1,8 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ClientOnly from '@/components/common/ClientOnly';
+import { useUser } from '@/contexts/UserContext';
+import PostCard from '@/components/profile/PostCard';
+import GuideCard from '@/components/profile/GuideCard';
+import PostEditModal from '@/components/profile/PostEditModal';
+import GuideEditModal from '@/components/profile/GuideEditModal';
+import ProfileEditModal from '@/components/profile/ProfileEditModal';
+import { postAPI, guideAPI, userAPI, ApiResponse, PageResponse, getFileUrl } from '@/services/api';
 
 // 模拟用户数据
 const mockUser = {
@@ -66,8 +74,293 @@ const mockGuides = [
 ];
 
 export default function ProfilePage() {
-  const [user] = useState(mockUser);
+  const { user, isAuthenticated, loading } = useUser();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'guides' | 'about'>('posts');
+  
+  // 动态相关状态
+  const [posts, setPosts] = useState<any[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsPage, setPostsPage] = useState(0);
+  const [postsHasMore, setPostsHasMore] = useState(true);
+  
+  // 攻略相关状态
+  const [guides, setGuides] = useState<any[]>([]);
+  const [guidesLoading, setGuidesLoading] = useState(false);
+  const [guidesPage, setGuidesPage] = useState(0);
+  const [guidesHasMore, setGuidesHasMore] = useState(true);
+  
+  // 模态框状态
+  const [postModalOpen, setPostModalOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<any>(null);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
+  const [editingGuide, setEditingGuide] = useState<any>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // 加载动态
+  const loadPosts = async (page = 0, append = false) => {
+    if (postsLoading) return;
+    
+    setPostsLoading(true);
+    try {
+      const response = await postAPI.getMyPosts(page) as ApiResponse<PageResponse<any>>;
+      if (response.code === 0) {
+        const newPosts = response.data.content;
+        if (append) {
+          setPosts(prev => [...prev, ...newPosts]);
+        } else {
+          setPosts(newPosts);
+        }
+        setPostsHasMore(!response.data.last);
+        setPostsPage(page);
+      }
+    } catch (error) {
+      console.error('加载动态失败:', error);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  // 加载攻略
+  const loadGuides = async (page = 0, append = false) => {
+    if (guidesLoading) return;
+    
+    setGuidesLoading(true);
+    try {
+      const response = await guideAPI.getMyGuides(page) as ApiResponse<PageResponse<any>>;
+      if (response.code === 0) {
+        // 为当前用户的攻略添加isOwned属性
+        const newGuides = response.data.content.map((guide: any) => ({
+          ...guide,
+          isOwned: true
+        }));
+        if (append) {
+          setGuides(prev => [...prev, ...newGuides]);
+        } else {
+          setGuides(newGuides);
+        }
+        setGuidesHasMore(!response.data.last);
+        setGuidesPage(page);
+      }
+    } catch (error) {
+      console.error('加载攻略失败:', error);
+    } finally {
+      setGuidesLoading(false);
+    }
+  };
+
+  // 切换标签页时加载数据 - 移到所有条件返回之前
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (activeTab === 'posts' && posts.length === 0) {
+        loadPosts(0);
+      } else if (activeTab === 'guides' && guides.length === 0) {
+        loadGuides(0);
+      }
+    }
+  }, [activeTab, isAuthenticated, user, posts.length, guides.length]);
+
+  // 如果还在加载中，显示加载状态
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果未认证，跳转到登录页
+  if (!isAuthenticated) {
+    router.push('/login');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">正在跳转到登录页面...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果没有用户信息，显示错误
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">用户信息加载失败</p>
+          <button 
+            onClick={() => router.push('/login')}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            重新登录
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+
+  // 处理动态操作
+  const handleCreatePost = async (postData: any) => {
+    try {
+      const response = await postAPI.createPost(postData) as ApiResponse<any>;
+      if (response.code === 0) {
+        loadPosts(0); // 重新加载第一页
+        setPostModalOpen(false);
+      }
+    } catch (error) {
+      console.error('创建动态失败:', error);
+      alert('创建动态失败');
+    }
+  };
+
+  const handleUpdatePost = async (postData: any) => {
+    if (!editingPost?.id) return;
+    
+    try {
+      const response = await postAPI.updatePost(editingPost.id, postData) as ApiResponse<any>;
+      if (response.code === 0) {
+        loadPosts(0); // 重新加载第一页
+        setPostModalOpen(false);
+        setEditingPost(null);
+      }
+    } catch (error) {
+      console.error('更新动态失败:', error);
+      alert('更新动态失败');
+    }
+  };
+
+  const handleDeletePost = async (postId: number) => {
+    if (!confirm('确定要删除这条动态吗？')) return;
+    
+    try {
+      const response = await postAPI.deletePost(postId) as ApiResponse<void>;
+      if (response.code === 0) {
+        loadPosts(0); // 重新加载第一页
+      }
+    } catch (error) {
+      console.error('删除动态失败:', error);
+      alert('删除动态失败');
+    }
+  };
+
+  const handleLikePost = async (postId: number) => {
+    try {
+      await postAPI.likePost(postId);
+    } catch (error) {
+      console.error('点赞失败:', error);
+    }
+  };
+
+  const handleUnlikePost = async (postId: number) => {
+    try {
+      await postAPI.unlikePost(postId);
+    } catch (error) {
+      console.error('取消点赞失败:', error);
+    }
+  };
+
+  const handleEditPost = (post: any) => {
+    setEditingPost(post);
+    setPostModalOpen(true);
+  };
+
+  const handleCreateNewPost = () => {
+    setEditingPost(null);
+    setPostModalOpen(true);
+  };
+
+  // 攻略处理函数
+  const handleCreateGuide = async (guideData: any) => {
+    try {
+      const response = await guideAPI.createGuide(guideData) as ApiResponse<any>;
+      if (response.code === 0) {
+        loadGuides(0, false); // 重新加载攻略列表
+      }
+    } catch (error) {
+      console.error('创建攻略失败:', error);
+    }
+  };
+
+  const handleUpdateGuide = async (guideData: any) => {
+    if (!editingGuide) return;
+    
+    try {
+      const response = await guideAPI.updateGuide(editingGuide.id, guideData) as ApiResponse<any>;
+      if (response.code === 0) {
+        loadGuides(0, false); // 重新加载攻略列表
+      }
+    } catch (error) {
+      console.error('更新攻略失败:', error);
+    }
+  };
+
+  const handleDeleteGuide = async (guideId: number) => {
+    if (!confirm('确定要删除这个攻略吗？')) return;
+    
+    try {
+      const response = await guideAPI.deleteGuide(guideId) as ApiResponse<any>;
+      if (response.code === 0) {
+        setGuides(guides.filter(guide => guide.id !== guideId));
+      }
+    } catch (error) {
+      console.error('删除攻略失败:', error);
+    }
+  };
+
+  const handleLikeGuide = async (guideId: number) => {
+    try {
+      await guideAPI.likeGuide(guideId);
+      setGuides(guides.map(guide => 
+        guide.id === guideId 
+          ? { ...guide, likeCount: guide.likeCount + 1 }
+          : guide
+      ));
+    } catch (error) {
+      console.error('点赞失败:', error);
+    }
+  };
+
+  const handleFavoriteGuide = async (guideId: number) => {
+    try {
+      await guideAPI.favoriteGuide(guideId);
+      setGuides(guides.map(guide => 
+        guide.id === guideId 
+          ? { ...guide, favoriteCount: guide.favoriteCount + 1 }
+          : guide
+      ));
+    } catch (error) {
+      console.error('收藏失败:', error);
+    }
+  };
+
+  const handleEditGuide = (guide: any) => {
+    setEditingGuide(guide);
+    setGuideModalOpen(true);
+  };
+
+  const handleCreateNewGuide = () => {
+    setEditingGuide(null);
+    setGuideModalOpen(true);
+  };
+
+  // 个人资料处理函数
+  const handleUpdateProfile = async (profileData: any) => {
+    try {
+      const response = await userAPI.updateProfile(profileData) as ApiResponse<any>;
+      if (response.code === 0) {
+        // 这里可以更新用户上下文或重新获取用户信息
+        window.location.reload(); // 简单的刷新方式
+      }
+    } catch (error) {
+      console.error('更新个人资料失败:', error);
+    }
+  };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,8 +372,8 @@ export default function ProfilePage() {
             <div className="relative w-24 h-24 mr-6 mb-4 md:mb-0">
               <ClientOnly>
                 <img
-                  src={user.avatar}
-                  alt={user.name}
+                  src={getFileUrl(user.avatar)}
+                  alt={user.nickname || user.username}
                   className="w-24 h-24 rounded-full object-cover"
                 />
               </ClientOnly>
@@ -89,39 +382,30 @@ export default function ProfilePage() {
             {/* 基本信息 */}
             <div className="flex-1">
               <div className="flex items-center mb-2">
-                <h1 className="text-2xl font-bold text-gray-900 mr-3">{user.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mr-3">{user.nickname || user.username}</h1>
                 {user.isCreator && (
                   <span className="px-2 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
                     创作者
                   </span>
                 )}
               </div>
-              <p className="text-gray-600 mb-3">{user.bio}</p>
+              <p className="text-gray-600 mb-3">{user.bio || '这个人很懒，还没有写简介'}</p>
               
               {/* 统计信息 */}
               <div className="flex items-center space-x-6 text-sm text-gray-500 mb-4">
-                <span>{user.followers} 粉丝</span>
-                <span>{user.following} 关注</span>
-                <span>{user.posts} 动态</span>
-                <span>{user.guides} 攻略</span>
-              </div>
-
-              {/* 标签 */}
-              <div className="flex flex-wrap gap-2">
-                {user.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
+                <span>{user.followerCount || 0} 粉丝</span>
+                <span>{user.followingCount || 0} 关注</span>
+                <span>{user.postCount || 0} 动态</span>
+                <span>{user.guideCount || 0} 攻略</span>
               </div>
             </div>
 
             {/* 操作按钮 */}
             <div className="flex space-x-3 mt-4 md:mt-0">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button 
+                onClick={() => setShowProfileModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
                 编辑资料
               </button>
               <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
@@ -144,7 +428,7 @@ export default function ProfilePage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                动态 ({user.posts})
+                动态 ({user.postCount || 0})
               </button>
               <button
                 onClick={() => setActiveTab('guides')}
@@ -154,7 +438,7 @@ export default function ProfilePage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                攻略 ({user.guides})
+                攻略 ({user.guideCount || 0})
               </button>
               <button
                 onClick={() => setActiveTab('about')}
@@ -172,54 +456,118 @@ export default function ProfilePage() {
           {/* 标签页内容 */}
           <div className="p-6">
             {activeTab === 'posts' && (
-              <div className="space-y-6">
-                {mockPosts.map((post) => (
-                  <div key={post.id} className="border border-gray-200 rounded-lg p-4">
-                    <p className="text-gray-900 mb-3">{post.content}</p>
-                    
-                    {post.images.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        {post.images.map((image, index) => (
-                          <ClientOnly key={index}>
-                            <img
-                              src={image}
-                              alt={`动态图片 ${index + 1}`}
-                              className="aspect-video object-cover rounded-lg"
-                            />
-                          </ClientOnly>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{post.createdAt}</span>
-                      <div className="flex items-center space-x-4">
-                        <span>❤️ {post.likes}</span>
-                        <span>💬 {post.comments}</span>
-                      </div>
+              <div>
+                {/* 发布动态按钮 */}
+                <div className="mb-6">
+                  <button
+                    onClick={handleCreateNewPost}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    ✏️ 发布动态
+                  </button>
+                </div>
+
+                {/* 动态列表 */}
+                <div className="space-y-6">
+                  {postsLoading && posts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="mt-2 text-gray-500">加载中...</p>
                     </div>
+                  ) : posts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">还没有发布过动态</p>
+                      <button
+                        onClick={handleCreateNewPost}
+                        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        发布第一条动态
+                      </button>
+                    </div>
+                  ) : (
+                    posts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onEdit={handleEditPost}
+                        onDelete={handleDeletePost}
+                        onLike={handleLikePost}
+                        onUnlike={handleUnlikePost}
+                      />
+                    ))
+                  )}
+                </div>
+
+                {/* 加载更多 */}
+                {postsHasMore && (
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={() => loadPosts(postsPage + 1, true)}
+                      disabled={postsLoading}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {postsLoading ? '加载中...' : '加载更多'}
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
             {activeTab === 'guides' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {mockGuides.map((guide) => (
-                  <div key={guide.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="aspect-video bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400">封面图片</span>
+              <div>
+                {/* 创建攻略按钮 */}
+                <div className="mb-6">
+                  <button
+                    onClick={handleCreateNewGuide}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    ✏️ 创建攻略
+                  </button>
+                </div>
+
+                {/* 攻略列表 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {guidesLoading && guides.length === 0 ? (
+                    <div className="col-span-2 text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="mt-2 text-gray-500">加载中...</p>
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 mb-2">{guide.title}</h3>
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span>⭐ {guide.rating}</span>
-                        <span>👁️ {guide.viewCount}</span>
-                        <span>{guide.createdAt}</span>
-                      </div>
+                  ) : guides.length === 0 ? (
+                    <div className="col-span-2 text-center py-8">
+                      <p className="text-gray-500">还没有创建过攻略</p>
+                      <button
+                        onClick={handleCreateNewGuide}
+                        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        创建第一篇攻略
+                      </button>
                     </div>
+                  ) : (
+                    guides.map((guide) => (
+                      <GuideCard
+                        key={guide.id}
+                        guide={guide}
+                        onEdit={handleEditGuide}
+                        onDelete={handleDeleteGuide}
+                        onLike={handleLikeGuide}
+                        onFavorite={handleFavoriteGuide}
+                      />
+                    ))
+                  )}
+                </div>
+
+                {/* 加载更多 */}
+                {guidesHasMore && (
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={() => loadGuides(guidesPage + 1, true)}
+                      disabled={guidesLoading}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {guidesLoading ? '加载中...' : '加载更多'}
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
@@ -229,68 +577,61 @@ export default function ProfilePage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">基本信息</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <span className="font-medium text-gray-900">位置：</span>
-                      <span className="text-gray-600">{user.location}</span>
+                      <span className="font-medium text-gray-900">用户名：</span>
+                      <span className="text-gray-600">{user.username}</span>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-900">加入时间：</span>
-                      <span className="text-gray-600">
-                        <ClientOnly>
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </ClientOnly>
-                      </span>
+                      <span className="font-medium text-gray-900">邮箱：</span>
+                      <span className="text-gray-600">{user.email}</span>
                     </div>
-                    {user.website && (
-                      <div>
-                        <span className="font-medium text-gray-900">网站：</span>
-                        <a href={user.website} className="text-blue-600 hover:text-blue-800">
-                          {user.website}
-                        </a>
-                      </div>
-                    )}
+                    <div>
+                      <span className="font-medium text-gray-900">角色：</span>
+                      <span className="text-gray-600">{user.role}</span>
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">社交媒体</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {user.socialLinks.weibo && (
-                      <div>
-                        <span className="font-medium text-gray-900">微博：</span>
-                        <a href={user.socialLinks.weibo} className="text-blue-600 hover:text-blue-800">
-                          @traveler123
-                        </a>
-                      </div>
-                    )}
-                    {user.socialLinks.wechat && (
-                      <div>
-                        <span className="font-medium text-gray-900">微信：</span>
-                        <span className="text-gray-600">{user.socialLinks.wechat}</span>
-                      </div>
-                    )}
-                    {user.socialLinks.douyin && (
-                      <div>
-                        <span className="font-medium text-gray-900">抖音：</span>
-                        <a href={user.socialLinks.douyin} className="text-blue-600 hover:text-blue-800">
-                          旅行达人小王
-                        </a>
-                      </div>
-                    )}
-                    {user.socialLinks.xiaohongshu && (
-                      <div>
-                        <span className="font-medium text-gray-900">小红书：</span>
-                        <a href={user.socialLinks.xiaohongshu} className="text-blue-600 hover:text-blue-800">
-                          旅行达人小王
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">个人简介</h3>
+                  <p className="text-gray-600">{user.bio || '这个人很懒，还没有写简介'}</p>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* 动态编辑模态框 */}
+      <PostEditModal
+        isOpen={postModalOpen}
+        onClose={() => {
+          setPostModalOpen(false);
+          setEditingPost(null);
+        }}
+        onSave={editingPost ? handleUpdatePost : handleCreatePost}
+        post={editingPost}
+        isEdit={!!editingPost}
+      />
+
+      {/* 攻略编辑模态框 */}
+      <GuideEditModal
+        isOpen={guideModalOpen}
+        onClose={() => {
+          setGuideModalOpen(false);
+          setEditingGuide(null);
+        }}
+        onSave={editingGuide ? handleUpdateGuide : handleCreateGuide}
+        guide={editingGuide}
+        title={editingGuide ? '编辑攻略' : '创建攻略'}
+      />
+
+      {/* 个人资料编辑模态框 */}
+      <ProfileEditModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onSave={handleUpdateProfile}
+        user={user}
+      />
     </div>
   );
 } 

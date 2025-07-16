@@ -89,9 +89,9 @@ export default function AIAssistantPage() {
                 点击右下角的AI助手按钮，开始与AI对话。你可以直接描述你的旅行需求，比如：
               </p>
               <ul className="text-sm text-gray-600 space-y-1">
-                <li>• "我想去张家界玩3天，有什么推荐？"</li>
-                <li>• "周末想找个地方徒步，有什么建议？"</li>
-                <li>• "去西藏需要准备什么装备？"</li>
+                <li>• &ldquo;我想去张家界玩3天，有什么推荐？&rdquo;</li>
+                <li>• &ldquo;周末想找个地方徒步，有什么建议？&rdquo;</li>
+                <li>• &ldquo;去西藏需要准备什么装备？&rdquo;</li>
               </ul>
             </div>
             <div>

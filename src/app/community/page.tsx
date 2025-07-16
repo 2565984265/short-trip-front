@@ -1,355 +1,305 @@
 'use client';
+import { useState, useEffect } from 'react';
+import { HeartIcon, ChatBubbleLeftIcon, BookmarkIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import ClientOnly from '@/components/common/ClientOnly';
+interface CommunityPost {
+  id: number;
+  title: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  type: 'TRAVEL_EXPERIENCE' | 'TRAVEL_TIP' | 'PHOTO_SHARING' | 'QUESTION' | 'DISCUSSION';
+  tags: string;
+  imageUrls: string;
+  likeCount: number;
+  commentCount: number;
+  favoriteCount: number;
+  viewCount: number;
+  isPinned: boolean;
+  isFeatured: boolean;
+  createTime: string;
+}
 
-// 模拟数据
-const mockPosts = [
-  {
-    id: '1',
-    author: {
-      id: '1',
-      name: '旅行达人小王',
-      avatar: '/avatars/user1.jpg',
-      isCreator: true,
-      followers: 1234,
-    },
-    content: '刚刚完成了张家界三日游，分享一些实用攻略！玻璃栈道真的很刺激，建议恐高的小伙伴慎重考虑。',
-    images: ['/avatars/user1.jpg'],
-    likes: 89,
-    comments: 23,
-    shares: 12,
-    createdAt: '2024-01-20 14:30',
-    tags: ['张家界', '玻璃栈道', '攻略分享'],
-  },
-  {
-    id: '2',
-    author: {
-      id: '2',
-      name: '骑行爱好者',
-      avatar: '/avatars/user2.jpg',
-      isCreator: true,
-      followers: 856,
-    },
-    content: '川藏线骑行第15天，今天翻越了折多山，海拔4298米。虽然很累，但看到的美景绝对值得！',
-    images: ['/avatars/user2.jpg'],
-    likes: 156,
-    comments: 45,
-    shares: 28,
-    createdAt: '2024-01-19 18:20',
-    tags: ['川藏线', '骑行', '高原'],
-  },
-  {
-    id: '3',
-    author: {
-      id: '3',
-      name: '户外探索者',
-      avatar: '/avatars/user3.jpg',
-      isCreator: false,
-      followers: 234,
-    },
-    content: '莫干山徒步一日游，竹林小径真的很美，空气清新，适合周末放松。推荐大家来体验！',
-    images: ['/avatars/user3.jpg'],
-    likes: 67,
-    comments: 15,
-    shares: 8,
-    createdAt: '2024-01-18 16:45',
-    tags: ['莫干山', '徒步', '一日游'],
-  },
-];
+const typeLabels = {
+  TRAVEL_EXPERIENCE: '旅行体验',
+  TRAVEL_TIP: '旅行攻略',
+  PHOTO_SHARING: '照片分享',
+  QUESTION: '问题咨询',
+  DISCUSSION: '讨论交流'
+};
 
-const mockCreators = [
-  {
-    id: '1',
-    name: '旅行达人小王',
-    avatar: '/avatars/user1.jpg',
-    bio: '专业旅行规划师，去过30+个国家，擅长制定个性化旅行方案',
-    followers: 1234,
-    posts: 89,
-    guides: 12,
-    tags: ['旅行规划', '摄影', '美食'],
-  },
-  {
-    id: '2',
-    name: '骑行爱好者',
-    avatar: '/avatars/user2.jpg',
-    bio: '资深骑行爱好者，完成过川藏线、青藏线等多条经典路线',
-    followers: 856,
-    posts: 156,
-    guides: 8,
-    tags: ['骑行', '户外', '探险'],
-  },
-  {
-    id: '3',
-    name: '户外探索者',
-    avatar: '/avatars/user3.jpg',
-    bio: '热爱户外运动，专注于短途徒步和露营攻略分享',
-    followers: 234,
-    posts: 67,
-    guides: 5,
-    tags: ['徒步', '露营', '户外'],
-  },
-];
-
-const mockTrendingTopics = [
-  { name: '张家界', count: 1234 },
-  { name: '川藏线', count: 856 },
-  { name: '莫干山', count: 567 },
-  { name: '玻璃栈道', count: 432 },
-  { name: '徒步', count: 345 },
-  { name: '骑行', count: 234 },
-];
+const typeColors = {
+  TRAVEL_EXPERIENCE: 'bg-blue-100 text-blue-800',
+  TRAVEL_TIP: 'bg-green-100 text-green-800',
+  PHOTO_SHARING: 'bg-purple-100 text-purple-800',
+  QUESTION: 'bg-orange-100 text-orange-800',
+  DISCUSSION: 'bg-gray-100 text-gray-800'
+};
 
 export default function CommunityPage() {
-  const [activeTab, setActiveTab] = useState<'posts' | 'creators' | 'trending'>('posts');
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string>('all');
+  const [searchKeyword, setSearchKeyword] = useState('');
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8080/api/community/posts?page=0&size=20');
+      const data = await response.json();
+      if (data.code === 0) {
+        setPosts(data.data.content || data.data);
+      }
+    } catch (error) {
+      console.error('获取帖子失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLike = async (postId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/community/posts/${postId}/like`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.code === 0) {
+        // 更新本地状态
+        setPosts(posts.map(post => 
+          post.id === postId 
+            ? { ...post, likeCount: post.likeCount + 1 }
+            : post
+        ));
+      }
+    } catch (error) {
+      console.error('点赞失败:', error);
+    }
+  };
+
+  const handleFavorite = async (postId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/community/posts/${postId}/favorite`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.code === 0) {
+        // 更新本地状态
+        setPosts(posts.map(post => 
+          post.id === postId 
+            ? { ...post, favoriteCount: post.favoriteCount + 1 }
+            : post
+        ));
+      }
+    } catch (error) {
+      console.error('收藏失败:', error);
+    }
+  };
+
+  const filteredPosts = posts.filter(post => {
+    const matchesType = selectedType === 'all' || post.type === selectedType;
+    const matchesKeyword = !searchKeyword || 
+      post.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      post.content.toLowerCase().includes(searchKeyword.toLowerCase());
+    return matchesType && matchesKeyword;
+  });
+
+  const formatTime = (timeString: string) => {
+    const date = new Date(timeString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor(diff / (1000 * 60));
+
+    if (days > 0) return `${days}天前`;
+    if (hours > 0) return `${hours}小时前`;
+    if (minutes > 0) return `${minutes}分钟前`;
+    return '刚刚';
+  };
+
+  const parseTags = (tagsString: string) => {
+    try {
+      return JSON.parse(tagsString) || [];
+    } catch {
+      return [];
+    }
+  };
+
+  const parseImages = (imagesString: string) => {
+    try {
+      return JSON.parse(imagesString) || [];
+    } catch {
+      return [];
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 页面标题 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">旅行社区</h1>
-          <p className="text-gray-600">分享你的旅行故事，发现精彩内容</p>
-        </div>
+      <main className="pt-20 pb-16">
+        <div className="container mx-auto px-4">
+          {/* 页面标题 */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">旅行社区</h1>
+            <p className="text-lg text-gray-600">分享你的旅行故事，发现更多精彩攻略</p>
+          </div>
 
-        {/* 标签页 */}
-        <div className="flex space-x-8 mb-8 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('posts')}
-            className={`pb-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'posts'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            社区动态
-          </button>
-          <button
-            onClick={() => setActiveTab('creators')}
-            className={`pb-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'creators'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            创作者
-          </button>
-          <button
-            onClick={() => setActiveTab('trending')}
-            className={`pb-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'trending'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            热门话题
-          </button>
-        </div>
+          {/* 筛选和搜索 */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* 类型筛选 */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedType('all')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    selectedType === 'all'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  全部
+                </button>
+                {Object.entries(typeLabels).map(([type, label]) => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedType(type)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      selectedType === type
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* 主要内容区域 */}
-          <div className="lg:w-2/3">
-            {activeTab === 'posts' && (
-              <div className="space-y-6">
-                {mockPosts.map((post) => (
-                  <div key={post.id} className="bg-white rounded-lg shadow-sm p-6">
-                                         {/* 作者信息 */}
-                     <div className="flex items-center mb-4">
-                       <div className="relative w-12 h-12 mr-4">
-                         <ClientOnly>
-                           <img
-                             src={post.author.avatar}
-                             alt={post.author.name}
-                             className="w-12 h-12 rounded-full object-cover"
-                           />
-                         </ClientOnly>
-                       </div>
-                       <div className="flex-1">
-                         <div className="flex items-center">
-                           <Link href="/profile" className="font-semibold text-gray-900 hover:text-blue-600">
-                             {post.author.name}
-                           </Link>
-                           {post.author.isCreator && (
-                             <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                               创作者
-                             </span>
-                           )}
-                         </div>
-                         <p className="text-sm text-gray-500">
-                           {post.author.followers} 粉丝 · {post.createdAt}
-                         </p>
-                       </div>
-                     </div>
+              {/* 搜索框 */}
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="搜索帖子..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
 
-                    {/* 内容 */}
-                    <p className="text-gray-900 mb-4">{post.content}</p>
-
-                    {/* 图片 */}
-                    {post.images.length > 0 && (
-                      <ClientOnly>
-                        <div className="grid grid-cols-2 gap-2 mb-4">
-                          {post.images.map((image, index) => (
-                            <img
-                              key={index}
-                              src={image}
-                              alt={`动态图片 ${index + 1}`}
-                              className="aspect-video object-cover rounded-lg"
-                            />
-                          ))}
+          {/* 帖子列表 */}
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-4 text-gray-600">加载中...</p>
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">暂无帖子</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredPosts.map((post) => (
+                <div key={post.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                  {/* 置顶标识 */}
+                  {post.isPinned && (
+                    <div className="bg-red-500 text-white text-xs px-3 py-1 text-center">
+                      置顶
+                    </div>
+                  )}
+                  
+                  <div className="p-6">
+                    {/* 帖子头部 */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={post.authorAvatar || '/avatars/placeholder.jpg'}
+                          alt={post.authorName}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900">{post.authorName}</p>
+                          <p className="text-sm text-gray-500">{formatTime(post.createTime)}</p>
                         </div>
-                      </ClientOnly>
-                    )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${typeColors[post.type]}`}>
+                        {typeLabels[post.type]}
+                      </span>
+                    </div>
+
+                    {/* 帖子标题 */}
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">{post.title}</h3>
+
+                    {/* 帖子内容 */}
+                    <p className="text-gray-700 mb-4 line-clamp-3">{post.content}</p>
 
                     {/* 标签 */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {post.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
+                    {post.tags && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {parseTags(post.tags).map((tag: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 图片 */}
+                    {post.imageUrls && parseImages(post.imageUrls).length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
+                        {parseImages(post.imageUrls).slice(0, 3).map((image: string, index: number) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`图片 ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
+                    )}
 
                     {/* 互动按钮 */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <div className="flex items-center space-x-6">
-                        <button className="flex items-center space-x-2 text-gray-500 hover:text-red-500">
-                          <span>❤️</span>
-                          <span>{post.likes}</span>
-                        </button>
-                        <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-500">
-                          <span>💬</span>
-                          <span>{post.comments}</span>
-                        </button>
-                        <button className="flex items-center space-x-2 text-gray-500 hover:text-green-500">
-                          <span>📤</span>
-                          <span>{post.shares}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'creators' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {mockCreators.map((creator) => (
-                  <div key={creator.id} className="bg-white rounded-lg shadow-sm p-6">
-                                         <div className="flex items-center mb-4">
-                       <div className="relative w-16 h-16 mr-4">
-                         <img
-                           src={creator.avatar}
-                           alt={creator.name}
-                           className="w-16 h-16 rounded-full object-cover"
-                         />
-                       </div>
-                       <div className="flex-1">
-                         <Link href="/profile" className="font-semibold text-gray-900 hover:text-blue-600">
-                           {creator.name}
-                         </Link>
-                         <p className="text-sm text-gray-500">{creator.followers} 粉丝</p>
-                       </div>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        关注
-                      </button>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-4">{creator.bio}</p>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {creator.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                        <button
+                          onClick={() => handleLike(post.id)}
+                          className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors"
                         >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{creator.posts} 动态</span>
-                      <span>{creator.guides} 攻略</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'trending' && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">热门话题</h3>
-                <div className="space-y-4">
-                  {mockTrendingTopics.map((topic, index) => (
-                    <div key={topic.name} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="text-lg font-bold text-gray-400 mr-4">#{index + 1}</span>
-                        <span className="font-medium text-gray-900">#{topic.name}</span>
+                          <HeartIcon className="w-5 h-5" />
+                          <span>{post.likeCount}</span>
+                        </button>
+                        <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
+                          <ChatBubbleLeftIcon className="w-5 h-5" />
+                          <span>{post.commentCount}</span>
+                        </button>
+                        <button
+                          onClick={() => handleFavorite(post.id)}
+                          className="flex items-center space-x-1 text-gray-500 hover:text-yellow-500 transition-colors"
+                        >
+                          <BookmarkIcon className="w-5 h-5" />
+                          <span>{post.favoriteCount}</span>
+                        </button>
                       </div>
-                      <span className="text-sm text-gray-500">{topic.count} 讨论</span>
+                      <div className="flex items-center space-x-1 text-gray-500">
+                        <EyeIcon className="w-4 h-4" />
+                        <span className="text-sm">{post.viewCount}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 侧边栏 */}
-          <div className="lg:w-1/3">
-            {/* 发布动态 */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">分享你的旅行</h3>
-              <textarea
-                placeholder="分享你的旅行故事..."
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={4}
-              />
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex space-x-2">
-                  <button className="p-2 text-gray-500 hover:text-blue-500">
-                    📷
-                  </button>
-                  <button className="p-2 text-gray-500 hover:text-blue-500">
-                    📍
-                  </button>
-                </div>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  发布
-                </button>
-              </div>
-            </div>
-
-            {/* 推荐关注 */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">推荐关注</h3>
-              <div className="space-y-4">
-                {mockCreators.slice(0, 3).map((creator) => (
-                                     <div key={creator.id} className="flex items-center">
-                     <div className="relative w-10 h-10 mr-3">
-                       <img
-                         src={creator.avatar}
-                         alt={creator.name}
-                         className="w-10 h-10 rounded-full object-cover"
-                       />
-                     </div>
-                     <div className="flex-1">
-                       <Link href="/profile" className="font-medium text-gray-900 hover:text-blue-600">
-                         {creator.name}
-                       </Link>
-                       <p className="text-sm text-gray-500">{creator.followers} 粉丝</p>
-                     </div>
-                    <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                      关注
-                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 } 
