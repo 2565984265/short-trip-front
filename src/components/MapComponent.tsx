@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { KMLRoute } from '@/types/kml';
+import { kmlApi } from '@/services/kml';
 
 // 修复Leaflet默认图标路径问题
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -51,9 +53,11 @@ interface MapComponentProps {
   }>;
   enablePOILoading?: boolean;
   enableRouteLoading?: boolean;
+  enableKMLLoading?: boolean; // 新增：是否启用KML路线加载
   selectedPOITypes?: string[];
   selectedTravelModes?: any[];
   onRouteClick?: (route: any) => void;
+  onKMLRouteClick?: (route: KMLRoute) => void; // 新增：KML路线点击回调
   resetView?: boolean; // 新增：用于重置地图视图
   onLocationUpdate?: (location: { lat: number; lng: number }) => void; // 新增：位置更新回调
 }
@@ -65,9 +69,11 @@ export default function MapComponent({
   routes = [],
   enablePOILoading = false,
   enableRouteLoading = false,
+  enableKMLLoading = false,
   selectedPOITypes = [],
   selectedTravelModes = [],
   onRouteClick,
+  onKMLRouteClick,
   resetView = false,
   onLocationUpdate
 }: MapComponentProps) {
@@ -75,6 +81,7 @@ export default function MapComponent({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [pois, setPois] = useState<POI[]>([]);
   const [routeData, setRouteData] = useState<any[]>([]);
+  const [kmlRoutes, setKmlRoutes] = useState<KMLRoute[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -86,6 +93,8 @@ export default function MapComponent({
   
   const poiMarkersRef = useRef<L.Marker[]>([]);
   const routeLinesRef = useRef<L.Polyline[]>([]);
+  const kmlRouteLinesRef = useRef<L.Polyline[]>([]);
+  const kmlPlacemarkMarkersRef = useRef<L.Marker[]>([]);
   const lastRequestRef = useRef<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -118,6 +127,34 @@ export default function MapComponent({
       }
     });
     routeLinesRef.current = [];
+  }, []);
+
+  // 清理KML路线标记
+  const clearKMLLines = useCallback(() => {
+    kmlRouteLinesRef.current.forEach(line => {
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.removeLayer(line);
+        } catch (e) {
+          // 忽略清理时的错误
+        }
+      }
+    });
+    kmlRouteLinesRef.current = [];
+  }, []);
+
+  // 清理KML标注点标记
+  const clearKMLPlacemarks = useCallback(() => {
+    kmlPlacemarkMarkersRef.current.forEach(marker => {
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.removeLayer(marker);
+        } catch (e) {
+          // 忽略清理时的错误
+        }
+      }
+    });
+    kmlPlacemarkMarkersRef.current = [];
   }, []);
 
   // 获取POI数据的函数
@@ -265,6 +302,39 @@ export default function MapComponent({
     }
   }, [enableRouteLoading, selectedTravelModes]);
 
+  // 获取KML路线数据的函数
+  const fetchKMLRoutes = useCallback(async () => {
+    if (!enableKMLLoading || !isComponentMountedRef.current) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/map/kml-routes`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result: ApiResponse<KMLRoute[]> = await response.json();
+      
+      if (result.code === 0 && isComponentMountedRef.current) {
+        setKmlRoutes(result.data);
+      } else if (result.code !== 0) {
+        throw new Error(result.message || '获取KML路线数据失败');
+      }
+    } catch (err) {
+      if (isComponentMountedRef.current) {
+        console.error('获取KML路线数据失败:', err);
+        setError(err instanceof Error ? err.message : '获取KML路线数据失败');
+      }
+    } finally {
+      if (isComponentMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [enableKMLLoading]);
+
   // 强制移动地图到指定位置
   const forceMoveToLocation = useCallback((lat: number, lng: number) => {
     if (!mapInstanceRef.current) return;
@@ -301,8 +371,60 @@ export default function MapComponent({
     setLocationLoading(true);
     setLocationError(null);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    // 检查是否使用HTTPS
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      setLocationLoading(false);
+      setLocationError('位置获取需要HTTPS连接，请使用HTTPS访问此页面');
+      return;
+    }
+
+    // 尝试多种定位策略
+    const tryLocationStrategies = async () => {
+      const strategies = [
+        // 策略1: 高精度定位
+        () => new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          });
+        }),
+        
+        // 策略2: 低精度定位（更快的网络定位）
+        () => new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 300000
+          });
+        }),
+        
+        // 策略3: 使用缓存位置
+        () => new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 600000 // 10分钟内的缓存
+          });
+        })
+      ];
+
+      for (let i = 0; i < strategies.length; i++) {
+        try {
+          console.log(`尝试定位策略 ${i + 1}...`);
+          const position = await strategies[i]();
+          return position;
+        } catch (error) {
+          console.log(`策略 ${i + 1} 失败:`, error);
+          if (i === strategies.length - 1) {
+            throw error;
+          }
+        }
+      }
+    };
+
+    tryLocationStrategies()
+      .then((position) => {
         const { latitude, longitude } = position.coords;
         const location = { lat: latitude, lng: longitude };
         
@@ -333,34 +455,47 @@ export default function MapComponent({
         }
         
         console.log('获取到当前位置:', location);
-      },
-      (error) => {
+      })
+      .catch((error) => {
         setLocationLoading(false);
         let errorMessage = '获取位置失败';
+        let errorDetails = '';
+        let suggestions = '';
         
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = '用户拒绝了位置请求';
+            errorMessage = '位置权限被拒绝';
+            errorDetails = '浏览器拒绝了位置访问请求';
+            suggestions = '请点击地址栏左侧的定位图标，或检查浏览器设置中的位置权限';
             break;
           case error.POSITION_UNAVAILABLE:
             errorMessage = '位置信息不可用';
+            errorDetails = '无法获取当前位置信息';
+            suggestions = '请检查网络连接，确保设备定位服务已开启，或尝试刷新页面';
             break;
           case error.TIMEOUT:
             errorMessage = '获取位置超时';
+            errorDetails = '定位请求超时';
+            suggestions = '请检查网络连接，或稍后重试';
             break;
           default:
             errorMessage = '获取位置时发生未知错误';
+            errorDetails = '定位服务出现异常';
+            suggestions = '请刷新页面后重试，或检查设备定位设置';
         }
         
-        setLocationError(errorMessage);
+        const fullError = `${errorMessage} - ${errorDetails}`;
+        setLocationError(fullError);
         console.error('获取位置失败:', error);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      }
-    );
+        
+        // 显示详细的错误信息和建议
+        console.log('位置获取失败详情:', {
+          error: fullError,
+          suggestions,
+          code: error.code,
+          message: error.message
+        });
+      });
   }, [mapReady, onLocationUpdate]);
 
   // 防抖函数
@@ -472,6 +607,10 @@ export default function MapComponent({
       fetchRoutes(bounds);
     }
 
+    if (enableKMLLoading) {
+      fetchKMLRoutes();
+    }
+
     return () => {
       if (map) {
         map.remove();
@@ -579,6 +718,121 @@ export default function MapComponent({
       }
     });
   }, [routeData, enableRouteLoading, mapReady, clearRouteLines, onRouteClick]);
+
+  // 更新KML路线
+  useEffect(() => {
+    if (!mapInstanceRef.current || !enableKMLLoading || !mapReady) return;
+
+    // 清理现有KML路线和标注点
+    clearKMLLines();
+    clearKMLPlacemarks();
+
+    // 限制显示的KML路线数量
+    const MAX_KML_ROUTES_DISPLAY = 10;
+    const kmlRoutesToShow = kmlRoutes.slice(0, MAX_KML_ROUTES_DISPLAY);
+
+    // 添加KML路线
+    kmlRoutesToShow.forEach((route, index) => {
+      if (route.trackPoints && route.trackPoints.length > 0) {
+        // 转换坐标格式
+        const coordinates: [number, number][] = route.trackPoints.map(point => [
+          point.latitude,
+          point.longitude
+        ]);
+
+        const polyline = L.polyline(coordinates, {
+          color: '#FF6B35', // KML路线使用橙色
+          weight: 4,
+          opacity: 0.8
+        }).bindPopup(`
+          <div class="kml-route-popup">
+            <h3 class="font-bold text-lg">${route.name || `KML路线 ${index + 1}`}</h3>
+            <p class="text-sm text-gray-600">距离: ${route.totalDistance ? `${(route.totalDistance / 1000).toFixed(2)}km` : '未知'}</p>
+            <p class="text-sm text-gray-600">出行方式: ${route.travelMode || '未知'}</p>
+            ${route.creatorName ? `<p class="text-sm text-gray-600">创建者: ${route.creatorName}</p>` : ''}
+            ${route.tags && route.tags.length > 0 ? `<p class="text-sm text-gray-600">标签: ${route.tags.join(', ')}</p>` : ''}
+          </div>
+        `);
+
+        polyline.addTo(mapInstanceRef.current!);
+        kmlRouteLinesRef.current.push(polyline);
+
+        // 添加点击事件
+        if (onKMLRouteClick) {
+          polyline.on('click', () => {
+            onKMLRouteClick(route);
+          });
+        }
+      }
+
+      // 添加KML标注点（只显示重要的标注点，如起点、终点、特殊标注点）
+      if (route.placemarks && route.placemarks.length > 0) {
+        route.placemarks.forEach(placemark => {
+          if (placemark.coordinate) {
+            // 只显示有名称或特殊类型的标注点，避免显示所有轨迹点
+            const shouldShow = placemark.name || 
+                              placemark.type === '起点' || 
+                              placemark.type === '终点' ||
+                              placemark.type === 'startPoint' ||
+                              placemark.type === 'endPoint' ||
+                              (placemark.attachments && placemark.attachments.length > 0);
+            
+            if (shouldShow) {
+              // 为不同类型的标注点使用不同的图标
+              let icon;
+              if (placemark.type === '起点' || placemark.type === 'startPoint') {
+                // 起点使用绿色圆点
+                icon = L.divIcon({
+                  className: 'kml-start-point',
+                  html: '<div class="w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-md"></div>',
+                  iconSize: [16, 16],
+                  iconAnchor: [8, 8]
+                });
+              } else if (placemark.type === '终点' || placemark.type === 'endPoint') {
+                // 终点使用红色圆点
+                icon = L.divIcon({
+                  className: 'kml-end-point',
+                  html: '<div class="w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-md"></div>',
+                  iconSize: [16, 16],
+                  iconAnchor: [8, 8]
+                });
+              } else if (placemark.attachments && placemark.attachments.length > 0) {
+                // 有附件的标注点使用蓝色圆点
+                icon = L.divIcon({
+                  className: 'kml-attachment-point',
+                  html: '<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md"></div>',
+                  iconSize: [16, 16],
+                  iconAnchor: [8, 8]
+                });
+              } else {
+                // 其他标注点使用小圆点
+                icon = L.divIcon({
+                  className: 'kml-placemark-point',
+                  html: '<div class="w-3 h-3 bg-orange-500 rounded-full border border-white shadow-sm"></div>',
+                  iconSize: [12, 12],
+                  iconAnchor: [6, 6]
+                });
+              }
+
+              const marker = L.marker([placemark.coordinate.latitude, placemark.coordinate.longitude], { icon })
+                .bindPopup(`
+                  <div class="kml-placemark-popup">
+                    <h3 class="font-bold text-lg">${placemark.name || '标注点'}</h3>
+                    ${placemark.description ? `<p class="text-sm mt-2">${placemark.description}</p>` : ''}
+                    ${placemark.type ? `<p class="text-xs text-gray-500 mt-1">类型: ${placemark.type}</p>` : ''}
+                    ${placemark.attachments && placemark.attachments.length > 0 ? 
+                      `<p class="text-xs text-blue-500 mt-1">📎 包含 ${placemark.attachments?.length || 0} 个附件</p>` : ''}
+                  </div>
+                `);
+
+              marker.addTo(mapInstanceRef.current!);
+              kmlPlacemarkMarkersRef.current.push(marker);
+            }
+          }
+        });
+      }
+    });
+  }, [kmlRoutes, enableKMLLoading, mapReady, clearKMLLines, clearKMLPlacemarks, onKMLRouteClick]);
 
   // 添加静态标记
   useEffect(() => {
@@ -719,7 +973,11 @@ export default function MapComponent({
       const bounds = mapInstanceRef.current.getBounds();
       fetchRoutes(bounds);
     }
-  }, [enablePOILoading, enableRouteLoading, selectedPOITypes, selectedTravelModes, mapReady, fetchPOIs, fetchRoutes]);
+
+    if (enableKMLLoading) {
+      fetchKMLRoutes();
+    }
+  }, [enablePOILoading, enableRouteLoading, enableKMLLoading, selectedPOITypes, selectedTravelModes, mapReady, fetchPOIs, fetchRoutes, fetchKMLRoutes]);
 
   // 组件卸载时清理
   useEffect(() => {
@@ -753,11 +1011,21 @@ export default function MapComponent({
         <button
           onClick={getCurrentLocation}
           disabled={locationLoading}
-          className="bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:text-gray-400 p-3 rounded-lg shadow-md border border-gray-200 transition-colors duration-200"
-          title="获取当前位置"
+          className={`p-3 rounded-lg shadow-md border transition-all duration-200 ${
+            locationLoading 
+              ? 'bg-blue-100 border-blue-300 text-blue-600 cursor-not-allowed' 
+              : currentLocation
+                ? 'bg-green-50 border-green-300 text-green-600 hover:bg-green-100'
+                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+          title={locationLoading ? '正在获取位置...' : currentLocation ? '重新获取位置' : '获取当前位置'}
         >
           {locationLoading ? (
-            <div className="w-5 h-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+            <div className="w-5 h-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+          ) : currentLocation ? (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
           ) : (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -816,12 +1084,26 @@ export default function MapComponent({
       
       {/* 位置错误提示 */}
       {locationError && (
-        <div className="absolute top-16 left-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-md">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm">📍 {locationError}</span>
+        <div className="absolute top-16 left-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-md max-w-sm">
+          <div className="flex items-start space-x-2">
+            <div className="flex-shrink-0">
+              <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">📍 位置获取失败</p>
+              <p className="text-xs mt-1">{locationError}</p>
+              <button 
+                onClick={() => getCurrentLocation()}
+                className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded mt-2 transition-colors"
+              >
+                重试
+              </button>
+            </div>
             <button 
               onClick={() => setLocationError(null)}
-              className="text-red-500 hover:text-red-700"
+              className="text-red-500 hover:text-red-700 flex-shrink-0"
             >
               ✕
             </button>
@@ -830,13 +1112,16 @@ export default function MapComponent({
       )}
       
       {/* 数据统计 */}
-      {(pois.length > 0 || routeData.length > 0 || currentLocation) && (
+      {(pois.length > 0 || routeData.length > 0 || kmlRoutes.length > 0 || currentLocation) && (
         <div className="absolute bottom-4 left-4 bg-white bg-opacity-90 px-3 py-2 rounded-lg shadow-md">
           <div className="text-xs text-gray-600">
             {pois.length > 0 && <div>POI: {pois.length}个</div>}
             {routeData.length > 0 && <div>路线: {routeData.length}条</div>}
+            {kmlRoutes.length > 0 && <div>KML路线: {kmlRoutes.length}条</div>}
             {enableRouteLoading && <div>路线加载: 已启用</div>}
             {!enableRouteLoading && <div>路线加载: 已禁用</div>}
+            {enableKMLLoading && <div>KML加载: 已启用</div>}
+            {!enableKMLLoading && <div>KML加载: 已禁用</div>}
             {currentLocation && (
               <div className="mt-1 pt-1 border-t border-gray-300">
                 <div className="text-blue-600 font-medium">📍 当前位置</div>

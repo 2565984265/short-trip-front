@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import { Route, TravelMode } from '@/types/route';
+import { KMLRoute } from '@/types/kml';
 
 const sampleMarkers = [
   { position: [39.9042, 116.4074] as [number, number], name: '天安门广场', description: '北京市中心的重要地标' },
@@ -80,8 +81,10 @@ export default function MapPage() {
   const [enableRouteLoading, setEnableRouteLoading] = useState(true);
   const [selectedPOITypes, setSelectedPOITypes] = useState<string[]>([]); // 默认显示所有POI类型
   const [selectedTravelModes, setSelectedTravelModes] = useState<TravelMode[]>([]); // 默认显示所有出行方式
+  const [enableKMLLoading, setEnableKMLLoading] = useState(true); // 默认开启KML加载
   const [showAIRecommendation, setShowAIRecommendation] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [selectedKMLRoute, setSelectedKMLRoute] = useState<KMLRoute | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const filteredMarkers = selectedType === 'all' 
@@ -118,6 +121,12 @@ export default function MapPage() {
     console.log('选择路线:', route);
   };
 
+  // 处理KML路线点击
+  const handleKMLRouteClick = (route: KMLRoute) => {
+    setSelectedKMLRoute(route);
+    console.log('选择KML路线:', route);
+  };
+
   // 处理位置更新
   const handleLocationUpdate = (location: { lat: number; lng: number }) => {
     setCurrentLocation(location);
@@ -139,7 +148,7 @@ export default function MapPage() {
       
       {/* 控制面板 */}
       <div className="mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white rounded-lg shadow-md p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-white rounded-lg shadow-md p-6">
           {/* 路线控制 */}
           <div>
             <h3 className="text-lg font-semibold mb-3">路线设置</h3>
@@ -276,6 +285,32 @@ export default function MapPage() {
             </div>
           </div>
 
+          {/* KML路线控制 */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">KML路线设置</h3>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="enableKMLLoading"
+                  checked={enableKMLLoading}
+                  onChange={(e) => setEnableKMLLoading(e.target.checked)}
+                  className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                />
+                <label htmlFor="enableKMLLoading" className="text-sm font-medium text-gray-700">
+                  加载KML路线数据
+                </label>
+              </div>
+              
+              <div className="text-xs text-gray-500">
+                <p>• 自动解析KML文件</p>
+                <p>• 显示轨迹路线</p>
+                <p>• 显示标注点</p>
+                <p>• 支持点击查看详情</p>
+              </div>
+            </div>
+          </div>
+
           {/* 传统标记控制 */}
           <div>
             <h3 className="text-lg font-semibold mb-3">传统标记</h3>
@@ -351,9 +386,11 @@ export default function MapPage() {
             markers={filteredMarkers}
             enablePOILoading={enablePOILoading}
             enableRouteLoading={enableRouteLoading}
+            enableKMLLoading={enableKMLLoading}
             selectedPOITypes={selectedPOITypes}
             selectedTravelModes={selectedTravelModes}
             onRouteClick={handleRouteClick}
+            onKMLRouteClick={handleKMLRouteClick}
             onLocationUpdate={handleLocationUpdate}
           />
         </div>
@@ -406,6 +443,69 @@ export default function MapPage() {
               <p><strong>路径点:</strong> {selectedRoute.pathPoints.length} 个</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* KML路线详情面板 */}
+      {selectedKMLRoute && (
+        <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+          <h3 className="text-xl font-bold mb-4">KML路线详情</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-semibold mb-2">基本信息</h4>
+              <p><strong>名称:</strong> {selectedKMLRoute.name || '未命名'}</p>
+              <p><strong>描述:</strong> {selectedKMLRoute.description || '无描述'}</p>
+              <p><strong>出行方式:</strong> {selectedKMLRoute.travelMode}</p>
+              <p><strong>创建者:</strong> {selectedKMLRoute.creatorName || '未知'}</p>
+              {selectedKMLRoute.tags && selectedKMLRoute.tags.length > 0 && (
+                <p><strong>标签:</strong> {selectedKMLRoute.tags.join(', ')}</p>
+              )}
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">路线数据</h4>
+              <p><strong>总距离:</strong> {selectedKMLRoute.totalDistance ? `${(selectedKMLRoute.totalDistance / 1000).toFixed(2)}km` : '未知'}</p>
+              <p><strong>轨迹点数:</strong> {selectedKMLRoute.trackPoints.length} 个</p>
+              <p><strong>标注点数:</strong> {selectedKMLRoute.placemarks.length} 个</p>
+              {selectedKMLRoute.maxAltitude && selectedKMLRoute.minAltitude && (
+                <p><strong>海拔范围:</strong> {selectedKMLRoute.minAltitude.toFixed(0)}m - {selectedKMLRoute.maxAltitude.toFixed(0)}m</p>
+              )}
+              {selectedKMLRoute.totalAscent && (
+                <p><strong>总爬升:</strong> {selectedKMLRoute.totalAscent.toFixed(0)}m</p>
+              )}
+              {selectedKMLRoute.totalDescent && (
+                <p><strong>总下降:</strong> {selectedKMLRoute.totalDescent.toFixed(0)}m</p>
+              )}
+            </div>
+          </div>
+          
+          {/* 起点终点信息 */}
+          {(selectedKMLRoute.startPoint || selectedKMLRoute.endPoint) && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h4 className="font-semibold mb-3">起终点信息</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {selectedKMLRoute.startPoint && (
+                  <div>
+                    <h5 className="font-medium text-green-600 mb-2">起点</h5>
+                    <p>纬度: {selectedKMLRoute.startPoint.latitude.toFixed(6)}</p>
+                    <p>经度: {selectedKMLRoute.startPoint.longitude.toFixed(6)}</p>
+                    {selectedKMLRoute.startPoint.altitude && (
+                      <p>海拔: {selectedKMLRoute.startPoint.altitude.toFixed(0)}m</p>
+                    )}
+                  </div>
+                )}
+                {selectedKMLRoute.endPoint && (
+                  <div>
+                    <h5 className="font-medium text-red-600 mb-2">终点</h5>
+                    <p>纬度: {selectedKMLRoute.endPoint.latitude.toFixed(6)}</p>
+                    <p>经度: {selectedKMLRoute.endPoint.longitude.toFixed(6)}</p>
+                    {selectedKMLRoute.endPoint.altitude && (
+                      <p>海拔: {selectedKMLRoute.endPoint.altitude.toFixed(0)}m</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

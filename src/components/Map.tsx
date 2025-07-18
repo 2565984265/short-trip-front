@@ -8,6 +8,8 @@ const MapComponent = dynamic(() => import('./MapComponent'), {
   loading: () => <div className="w-full h-full bg-gray-100 flex items-center justify-center">加载地图中...</div>
 });
 
+import { KMLRoute } from '@/types/kml';
+
 interface MapProps {
   center?: [number, number];
   zoom?: number;
@@ -24,9 +26,11 @@ interface MapProps {
   }>;
   enablePOILoading?: boolean;
   enableRouteLoading?: boolean;
+  enableKMLLoading?: boolean; // 新增：是否启用KML路线加载
   selectedPOITypes?: string[];
   selectedTravelModes?: any[];
   onRouteClick?: (route: any) => void;
+  onKMLRouteClick?: (route: KMLRoute) => void; // 新增：KML路线点击回调
   onLocationUpdate?: (location: { lat: number; lng: number }) => void;
 }
 
