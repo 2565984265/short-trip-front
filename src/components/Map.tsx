@@ -8,10 +8,27 @@ const MapComponent = dynamic(() => import('./MapComponent'), {
   loading: () => <div className="w-full h-full bg-gray-100 flex items-center justify-center">加载地图中...</div>
 });
 
-import { KMLRoute } from '@/types/kml';
+// KML路线类型定义
+interface KMLRoute {
+  id: number;
+  name?: string;
+  description?: string;
+  travelMode?: string;
+  creatorName?: string;
+  tags?: string[];
+  totalDistance?: number;
+  trackPoints?: Array<{ latitude: number; longitude: number; altitude?: number }>;
+  placemarks?: Array<{ name?: string; description?: string; coordinates: { latitude: number; longitude: number; altitude?: number } }>;
+  maxAltitude?: number;
+  minAltitude?: number;
+  totalAscent?: number;
+  totalDescent?: number;
+  startPoint?: { latitude: number; longitude: number; altitude?: number };
+  endPoint?: { latitude: number; longitude: number; altitude?: number };
+}
 
 interface MapProps {
-  center?: [number, number];
+  center?: [number, number]; // 默认杭州市中心
   zoom?: number;
   markers?: Array<{
     position: [number, number];
@@ -34,6 +51,6 @@ interface MapProps {
   onLocationUpdate?: (location: { lat: number; lng: number }) => void;
 }
 
-export default function Map(props: MapProps) {
-  return <MapComponent {...props} />;
+export default function Map({ center = [30.2741, 120.1551], zoom = 11, ...rest }: MapProps) {
+  return <MapComponent center={center} zoom={zoom} {...rest} />;
 } 

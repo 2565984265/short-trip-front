@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Guide } from '@/types/guide';
+
+// 动态导入 ReactQuill，避免 SSR 问题
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+import 'react-quill/dist/quill.snow.css';
 
 interface GuideEditModalProps {
   isOpen: boolean;
@@ -35,6 +40,26 @@ export default function GuideEditModal({
   });
 
   const [loading, setLoading] = useState(false);
+
+  // ReactQuill 配置
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'indent': '-1'}, { 'indent': '+1' }],
+      ['link'],
+      [{ 'align': [] }],
+      ['clean']
+    ],
+  };
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet', 'indent',
+    'link', 'align'
+  ];
 
   useEffect(() => {
     if (guide) {
@@ -102,6 +127,14 @@ export default function GuideEditModal({
     }
   };
 
+  const handleContentChange = (value: string) => {
+    setFormData(prev => ({ ...prev, content: value }));
+  };
+
+  const handleSummaryChange = (value: string) => {
+    setFormData(prev => ({ ...prev, summary: value }));
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -145,36 +178,46 @@ export default function GuideEditModal({
             </div>
           </div>
 
-          {/* 摘要 */}
+          {/* 摘要 - 富文本编辑器 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               攻略摘要 *
             </label>
-            <textarea
-              name="summary"
+            <div className="border border-gray-300 rounded-md">
+              <ReactQuill
+                theme="snow"
               value={formData.summary}
-              onChange={handleChange}
-              required
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="请输入攻略摘要"
-            />
+                onChange={handleSummaryChange}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="请输入攻略摘要..."
+                style={{
+                  height: '120px',
+                  marginBottom: '50px'
+                }}
+              />
+            </div>
           </div>
 
-          {/* 详细内容 */}
+          {/* 详细内容 - 富文本编辑器 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               详细内容 *
             </label>
-            <textarea
-              name="content"
+            <div className="border border-gray-300 rounded-md">
+              <ReactQuill
+                theme="snow"
               value={formData.content}
-              onChange={handleChange}
-              required
-              rows={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="请输入详细的攻略内容"
-            />
+                onChange={handleContentChange}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="请输入详细的攻略内容..."
+                style={{
+                  height: '300px',
+                  marginBottom: '50px'
+                }}
+              />
+            </div>
           </div>
 
           {/* 参数设置 */}

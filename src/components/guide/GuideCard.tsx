@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Guide } from '@/types/guide';
+import { RichTextDisplay } from '@/components/common/RichTextEditor';
 
 interface GuideCardProps {
   guide: Guide;
@@ -58,7 +59,10 @@ export default function GuideCard({ guide }: GuideCardProps) {
             {guide.title}
           </h3>
           <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-            {guide.summary}
+            <RichTextDisplay 
+            content={guide.summary} 
+            className="text-sm text-gray-600"
+          />
           </p>
           {/* 目的地、时间、费用等信息 */}
           <div className="flex items-center text-sm text-gray-500 mb-3">

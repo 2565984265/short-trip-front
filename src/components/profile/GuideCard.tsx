@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { getFileUrl } from '../../services/api';
+import { RichTextDisplay } from '../common/RichTextEditor';
 
 interface Guide {
   id: number;
@@ -68,7 +70,7 @@ export default function GuideCard({ guide, onEdit, onDelete, onLike, onFavorite 
       {/* 封面图片 */}
       <div className="relative h-48">
         <Image
-          src={guide.coverImage || '/images/placeholder.jpg'}
+          src={getFileUrl(guide.coverImage) || '/images/placeholder.jpg'}
           alt={guide.title}
           fill
           className="object-cover"
@@ -103,10 +105,13 @@ export default function GuideCard({ guide, onEdit, onDelete, onLike, onFavorite 
           <div className="flex items-center mt-1">
             <div className="relative w-6 h-6 mr-2">
               <Image
-                src={guide.userAvatar || '/avatars/user1.jpg'}
+                src={getFileUrl(guide.userAvatar)}
                 alt={guide.userNickname}
                 fill
                 className="rounded-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = '/avatars/user1.jpg';
+                }}
               />
             </div>
             <span className="text-sm text-gray-600">{guide.userNickname}</span>
@@ -114,9 +119,12 @@ export default function GuideCard({ guide, onEdit, onDelete, onLike, onFavorite 
         </div>
 
         {/* 摘要 */}
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-          {guide.summary}
-        </p>
+        <div className="text-sm text-gray-600 mb-3 line-clamp-2">
+          <RichTextDisplay 
+            content={guide.summary} 
+            className="text-sm text-gray-600"
+          />
+        </div>
 
         {/* 标签和难度 */}
         <div className="flex items-center justify-between mb-3">
@@ -158,4 +166,4 @@ export default function GuideCard({ guide, onEdit, onDelete, onLike, onFavorite 
       </div>
     </div>
   );
-} 
+}

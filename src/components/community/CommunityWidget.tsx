@@ -13,7 +13,7 @@ const mockRelatedPosts = [
   {
     id: '1',
     author: '旅行达人小王',
-    content: '刚刚完成了张家界三日游，分享一些实用攻略！',
+    content: '刚刚完成了张家界三日游，分享一些实用指南！',
     likes: 89,
     comments: 23,
     createdAt: '2024-01-20',
@@ -84,7 +84,7 @@ export default function CommunityWidget({ guideId, tags }: CommunityWidgetProps)
             <div key={creator.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <h5 className="font-medium text-gray-900">{creator.name}</h5>
-                <p className="text-sm text-gray-500">{creator.followers} 粉丝 · {creator.guides} 攻略</p>
+                <p className="text-sm text-gray-500">{creator.followers} 粉丝 · {creator.guides} 指南</p>
               </div>
               <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 关注

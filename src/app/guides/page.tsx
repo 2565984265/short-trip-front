@@ -1,10 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
+
 import { HeartIcon, BookmarkIcon, EyeIcon, StarIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Guide, GuideFilter, DIFFICULTY_LEVELS, SEASONS, TRANSPORT_MODES } from '@/types/guide';
 import { guideAPI, ApiResponse } from '@/services/api';
 import { AIService } from '@/services/ai';
+import GuideCard from '@/components/guide/GuideCard';
 
 export default function GuidesPage() {
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -109,7 +111,7 @@ export default function GuidesPage() {
         {/* 页面标题 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">旅行指南</h1>
-          <p className="text-gray-600">发现精选的旅行攻略，规划你的完美旅程</p>
+          <p className="text-gray-600">发现精选的旅行指南，规划你的完美旅程</p>
         </div>
 
         {/* 搜索和AI推荐 */}
@@ -268,13 +270,10 @@ export default function GuidesPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">精选指南</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredGuides.map((guide) => (
-                                 <GuideCard
-                   key={guide.id}
-                   guide={guide}
-                   onLike={() => handleLike(guide.id.toString())}
-                   onBookmark={() => handleBookmark(guide.id.toString())}
-                   featured={true}
-                 />
+                <GuideCard
+                  key={guide.id}
+                  guide={guide}
+                />
               ))}
             </div>
           </div>
@@ -297,12 +296,10 @@ export default function GuidesPage() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {guides.map((guide) => (
-                                     <GuideCard
-                     key={guide.id}
-                     guide={guide}
-                     onLike={() => handleLike(guide.id.toString())}
-                     onBookmark={() => handleBookmark(guide.id.toString())}
-                   />
+                  <GuideCard
+                    key={guide.id}
+                    guide={guide}
+                  />
                 ))}
               </div>
               
@@ -340,93 +337,3 @@ export default function GuidesPage() {
   );
 }
 
-// 指南卡片组件
-function GuideCard({ guide, onLike, onBookmark, featured = false }: {
-  guide: Guide;
-  onLike: () => void;
-  onBookmark: () => void;
-  featured?: boolean;
-}) {
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-
-  return (
-    <div className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${featured ? 'ring-2 ring-blue-500' : ''}`}>
-      <div className="relative">
-        <img
-          src={guide.coverImage || '/images/placeholder.jpg'}
-          alt={guide.title}
-          className="w-full h-48 object-cover rounded-t-lg"
-        />
-        {featured && (
-          <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-            精选
-          </div>
-        )}
-        <div className="absolute top-2 right-2 flex space-x-2">
-          <button
-            onClick={() => {
-              setLiked(!liked);
-              onLike();
-            }}
-            className="p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all"
-          >
-            {liked ? (
-              <HeartSolidIcon className="h-5 w-5 text-red-500" />
-            ) : (
-              <HeartIcon className="h-5 w-5 text-gray-600" />
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setBookmarked(!bookmarked);
-              onBookmark();
-            }}
-            className="p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all"
-          >
-            <BookmarkIcon className={`h-5 w-5 ${bookmarked ? 'text-blue-500' : 'text-gray-600'}`} />
-          </button>
-        </div>
-      </div>
-      
-      <div className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-          {guide.title}
-        </h3>
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-          {guide.summary}
-        </p>
-        
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1">
-              <StarIcon className="h-4 w-4 text-yellow-400" />
-              <span className="text-sm text-gray-600">{guide.rating || 4.5}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <EyeIcon className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-600">{guide.viewCount || 0}</span>
-            </div>
-          </div>
-          <div className="text-sm text-gray-500">
-            {guide.estimatedTime}
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-2">
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-              {guide.destination}
-            </span>
-            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-              {guide.difficultyLevel}
-            </span>
-          </div>
-          <span className="text-sm text-gray-500">
-            {guide.author}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}

@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { HeartIcon, BookmarkIcon, EyeIcon, StarIcon, ArrowLeftIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Guide, DIFFICULTY_LEVELS } from '@/types/guide';
+import { RichTextDisplay } from '@/components/common/RichTextEditor';
 
 export default function GuideDetailPage() {
   const params = useParams();
@@ -170,7 +171,12 @@ export default function GuideDetailPage() {
                 </span>
               </div>
 
-              <p className="text-gray-600 text-lg mb-6">{guide.summary}</p>
+              <div className="text-gray-600 text-lg mb-6">
+                <RichTextDisplay 
+                  content={guide.summary} 
+                  className="text-lg text-gray-600"
+                />
+              </div>
 
               {/* 标签 */}
               {guide.tags && guide.tags.length > 0 && (
@@ -231,13 +237,12 @@ export default function GuideDetailPage() {
 
           {/* 指南内容 */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">详细攻略</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">详细指南</h2>
             <div className="prose max-w-none">
-              {guide.content.split('\n').map((paragraph, index) => (
-                <p key={index} className="mb-4 text-gray-700 leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
+              <RichTextDisplay 
+                content={guide.content} 
+                className="prose prose-lg max-w-none text-gray-700"
+              />
             </div>
           </div>
 

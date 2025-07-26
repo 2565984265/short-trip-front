@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, BookmarkIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
+import CommentModal from '@/components/profile/CommentModal';
 
 interface CommunityPost {
   id: number;
@@ -24,7 +25,7 @@ interface CommunityPost {
 
 const typeLabels = {
   TRAVEL_EXPERIENCE: '旅行体验',
-  TRAVEL_TIP: '旅行攻略',
+  TRAVEL_TIP: '旅行指南',
   PHOTO_SHARING: '照片分享',
   QUESTION: '问题咨询',
   DISCUSSION: '讨论交流'
@@ -43,6 +44,19 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
+  
+  // 评论相关状态
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [selectedPostAuthor, setSelectedPostAuthor] = useState<string>('');
+
+  // 显示评论
+  const handleShowComments = (postId: number) => {
+    const post = posts.find(p => p.id === postId);
+    setSelectedPostId(postId);
+    setSelectedPostAuthor(post?.authorName || '');
+    setCommentModalOpen(true);
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -146,7 +160,7 @@ export default function CommunityPage() {
           {/* 页面标题 */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">旅行社区</h1>
-            <p className="text-lg text-gray-600">分享你的旅行故事，发现更多精彩攻略</p>
+            <p className="text-lg text-gray-600">分享你的旅行故事，发现更多精彩指南</p>
           </div>
 
           {/* 筛选和搜索 */}
@@ -276,7 +290,10 @@ export default function CommunityPage() {
                           <HeartIcon className="w-5 h-5" />
                           <span>{post.likeCount}</span>
                         </button>
-                        <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
+                        <button
+                          onClick={() => handleShowComments(post.id)}
+                          className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors"
+                        >
                           <ChatBubbleLeftIcon className="w-5 h-5" />
                           <span>{post.commentCount}</span>
                         </button>
@@ -300,6 +317,17 @@ export default function CommunityPage() {
           )}
         </div>
       </main>
+
+      {/* 评论模态框 */}
+      {commentModalOpen && selectedPostId && (
+        <CommentModal
+          isOpen={commentModalOpen}
+          onClose={() => setCommentModalOpen(false)}
+          contentType="COMMUNITY_POST"
+          contentId={selectedPostId}
+          contentAuthor={selectedPostAuthor}
+        />
+      )}
     </div>
   );
 } 

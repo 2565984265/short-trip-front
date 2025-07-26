@@ -67,7 +67,7 @@ export const authUtils = {
 };
 
 // 通用请求方法
-async function apiRequest<T>(
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -78,24 +78,45 @@ async function apiRequest<T>(
   
   // 开发环境下的调试日志
   if (process.env.NODE_ENV === 'development') {
-    console.log(`API Request: ${endpoint}, Token: ${token ? 'Present' : 'Missing'}`);
+    console.log(`🔍 API Request: ${endpoint}`);
+    console.log(`🔑 Token status: ${token ? 'Present' : 'Missing'}`);
+    console.log(`🔑 Token value: ${token ? token.substring(0, 30) + '...' : 'null'}`);
+    console.log(`🔑 Token type: ${typeof token}`);
+    console.log(`🔑 Token truthiness: ${!!token}`);
     if (isFormData) {
       console.log('FormData detected, Content-Type will be auto-set by browser');
     }
   }
   
+  // 手动构建headers对象
+  const headers: Record<string, string> = {};
+  
+  // 先添加其他自定义headers
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+  
+  // 然后添加Content-Type（如果不是FormData且没有被自定义headers设置）
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  // 最后添加Authorization头（确保不被覆盖）
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    console.log('🔑 Adding Authorization header:', `Bearer ${token.substring(0, 30)}...`);
+  }
+  
   const config: RequestInit = {
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
+    headers,
     ...options,
   };
 
   // 开发环境下的详细调试信息
   if (process.env.NODE_ENV === 'development') {
-    console.log('Request config headers:', config.headers);
+    console.log('🔍 Final request headers:', config.headers);
+    console.log('🔍 Headers keys:', Object.keys(headers));
+    console.log('🔍 Authorization in headers:', 'Authorization' in headers ? 'YES' : 'NO');
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
@@ -120,6 +141,82 @@ async function apiRequest<T>(
   }
   
   return response.json();
+}
+
+// 文件下载专用请求方法（返回Blob）
+export async function downloadFile(
+  endpoint: string,
+  filename?: string
+): Promise<void> {
+  const token = getAuthToken();
+  
+  const config: RequestInit = {
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  
+  if (!response.ok) {
+    // 如果是401错误，清除本地存储并跳转到登录页
+    if (response.status === 401) {
+      authUtils.clearAuth();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      throw new Error('登录已过期，请重新登录');
+    }
+    
+    throw new Error(`下载失败: ${response.status}`);
+  }
+  
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || 'download';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+// 获取文件内容专用请求方法（返回文本）
+export async function getFileContent(endpoint: string): Promise<string> {
+  const token = getAuthToken();
+  
+  // 调试信息
+  console.log('🔍 getFileContent - API Request');
+  console.log('🔑 Token from getAuthToken():', token ? token.substring(0, 20) + '...' : 'null');
+  console.log('🌐 Full URL:', `${API_BASE_URL}${endpoint}`);
+  
+  const config: RequestInit = {
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  };
+
+  console.log('📤 Request headers:', config.headers);
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  
+  console.log('📥 Response status:', response.status);
+  
+  if (!response.ok) {
+    // 如果是401错误，清除本地存储并跳转到登录页
+    if (response.status === 401) {
+      authUtils.clearAuth();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      throw new Error('登录已过期，请重新登录');
+    }
+    
+    throw new Error(`获取文件内容失败: ${response.status}`);
+  }
+  
+  return response.text();
 }
 
 // 动态相关API
@@ -179,6 +276,38 @@ export const postAPI = {
   // 根据标签查询动态
   getPostsByTag: (tag: string, page = 0, size = 10) =>
     apiRequest(`/api/posts/tag/${encodeURIComponent(tag)}?page=${page}&size=${size}`),
+  
+  // 获取动态评论
+  getComments: (postId: number, page = 0, size = 20) =>
+    apiRequest(`/api/posts/${postId}/comments?page=${page}&size=${size}`),
+  
+  // 添加评论
+  addComment: (postId: number, content: string, parentId?: number) =>
+    apiRequest(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        content,
+        parentId
+      }),
+    }),
+  
+  // 删除评论
+  deleteComment: (postId: number, commentId: number) =>
+    apiRequest(`/api/posts/${postId}/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
+  
+  // 点赞评论
+  likeComment: (postId: number, commentId: number) =>
+    apiRequest(`/api/posts/${postId}/comments/${commentId}/like`, {
+      method: 'POST',
+    }),
+  
+  // 取消点赞评论
+  unlikeComment: (postId: number, commentId: number) =>
+    apiRequest(`/api/posts/${postId}/comments/${commentId}/like`, {
+      method: 'DELETE',
+    }),
 };
 
 // 攻略相关API
@@ -305,6 +434,111 @@ export const fileAPI = {
   // 删除文件
   deleteFile: (fileId: number) =>
     apiRequest(`/api/files/${fileId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// 社区相关API
+export const communityAPI = {
+  // 获取社区帖子列表
+  getPosts: (page = 0, size = 20) =>
+    apiRequest(`/api/community/posts?page=${page}&size=${size}`),
+  
+  // 根据类型获取帖子
+  getPostsByType: (type: string, page = 0, size = 20) =>
+    apiRequest(`/api/community/posts/type/${type}?page=${page}&size=${size}`),
+  
+  // 获取热门帖子
+  getHotPosts: (limit = 10) =>
+    apiRequest(`/api/community/posts/hot?limit=${limit}`),
+  
+  // 获取精华帖子
+  getFeaturedPosts: (limit = 10) =>
+    apiRequest(`/api/community/posts/featured?limit=${limit}`),
+  
+  // 获取置顶帖子
+  getPinnedPosts: () =>
+    apiRequest('/api/community/posts/pinned'),
+  
+  // 根据ID获取帖子
+  getPostById: (postId: number) =>
+    apiRequest(`/api/community/posts/${postId}`),
+  
+  // 创建帖子
+  createPost: (postData: any) =>
+    apiRequest('/api/community/posts', {
+      method: 'POST',
+      body: JSON.stringify(postData),
+    }),
+  
+  // 更新帖子
+  updatePost: (postId: number, postData: any) =>
+    apiRequest(`/api/community/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(postData),
+    }),
+  
+  // 删除帖子
+  deletePost: (postId: number) =>
+    apiRequest(`/api/community/posts/${postId}`, {
+      method: 'DELETE',
+    }),
+  
+  // 点赞帖子
+  likePost: (postId: number) =>
+    apiRequest(`/api/community/posts/${postId}/like`, {
+      method: 'POST',
+    }),
+  
+  // 收藏帖子
+  favoritePost: (postId: number) =>
+    apiRequest(`/api/community/posts/${postId}/favorite`, {
+      method: 'POST',
+    }),
+  
+  // 搜索帖子
+  searchPosts: (keyword: string) =>
+    apiRequest(`/api/community/posts/search?keyword=${encodeURIComponent(keyword)}`),
+  
+  // 根据标签搜索帖子
+  searchPostsByTag: (tag: string) =>
+    apiRequest(`/api/community/posts/tag/${encodeURIComponent(tag)}`),
+  
+  // 获取帖子统计
+  getPostStats: () =>
+    apiRequest('/api/community/posts/stats'),
+  
+  // ==================== 社区评论相关接口 ====================
+  
+  // 获取社区帖子评论
+  getComments: (postId: number, page = 0, size = 20) =>
+    apiRequest(`/api/community/posts/${postId}/comments?page=${page}&size=${size}`),
+  
+  // 添加社区帖子评论
+  addComment: (postId: number, content: string, parentId?: number) =>
+    apiRequest(`/api/community/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        content,
+        parentId
+      }),
+    }),
+  
+  // 删除社区帖子评论
+  deleteComment: (postId: number, commentId: number) =>
+    apiRequest(`/api/community/posts/${postId}/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
+  
+  // 点赞社区帖子评论
+  likeComment: (postId: number, commentId: number) =>
+    apiRequest(`/api/community/posts/${postId}/comments/${commentId}/like`, {
+      method: 'POST',
+    }),
+  
+  // 取消点赞社区帖子评论
+  unlikeComment: (postId: number, commentId: number) =>
+    apiRequest(`/api/community/posts/${postId}/comments/${commentId}/like`, {
       method: 'DELETE',
     }),
 };

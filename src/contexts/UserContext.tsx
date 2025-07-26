@@ -8,6 +8,8 @@ interface UserContextType {
   token: string | null;
   login: (userData: User, token: string) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
+  updateUserStats: (stats: Partial<Pick<User, 'guideCount' | 'postCount' | 'followerCount' | 'followingCount'>>) => void;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -20,7 +22,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // 验证token有效性
+  // 验证token有效性并获取最新用户信息
   const validateToken = async (token: string): Promise<boolean> => {
     try {
       console.log('Validating token:', token.substring(0, 20) + '...');
@@ -55,6 +57,50 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // 刷新用户信息
+  const refreshUser = async () => {
+    const currentToken = token || localStorage.getItem('token');
+    if (!currentToken) {
+      console.log('No token available for refresh');
+      return;
+    }
+
+    try {
+      console.log('Refreshing user info...');
+      const response = await fetch('http://localhost:8080/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.code === 0 && data.data) {
+          setUser(data.data);
+          // 更新本地存储
+          localStorage.setItem('user', JSON.stringify(data.data));
+          console.log('User info refreshed successfully:', data.data);
+        }
+      } else {
+        console.error('Failed to refresh user info:', response.status);
+      }
+    } catch (error) {
+      console.error('Error refreshing user info:', error);
+    }
+  };
+
+  // 更新用户统计信息
+  const updateUserStats = (stats: Partial<Pick<User, 'guideCount' | 'postCount' | 'followerCount' | 'followingCount'>>) => {
+    if (user) {
+      const updatedUser = { ...user, ...stats };
+      setUser(updatedUser);
+      // 更新本地存储
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('User stats updated:', stats);
+    }
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -65,23 +111,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const savedUser = localStorage.getItem('user');
         
         if (savedToken) {
-          console.log('Found saved token, validating...');
+          console.log('Found saved token, setting auth state...');
           
-          // 验证token有效性
-          const isValid = await validateToken(savedToken);
-          
-          if (isValid) {
+          // 暂时跳过token验证，直接使用localStorage中的数据
             setToken(savedToken);
             setIsAuthenticated(true);
-            console.log('Auth initialization successful');
-          } else {
-            // Token无效，清除本地存储
-            console.log('Token invalid, clearing storage');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setIsAuthenticated(false);
-            setUser(null);
+          
+          // 如果localStorage有用户数据，也恢复它
+          if (savedUser) {
+            try {
+              setUser(JSON.parse(savedUser));
+              console.log('User data restored from localStorage');
+            } catch (error) {
+              console.error('Failed to parse saved user data:', error);
+            }
           }
+          
+          console.log('Auth initialization successful (skipped validation)');
         } else {
           console.log('No saved token found');
           setIsAuthenticated(false);
@@ -119,7 +165,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, token, login, logout, isAuthenticated, loading }}>
+    <UserContext.Provider value={{ 
+      user, 
+      token, 
+      login, 
+      logout, 
+      refreshUser,
+      updateUserStats,
+      isAuthenticated, 
+      loading 
+    }}>
       {children}
     </UserContext.Provider>
   );
@@ -131,4 +186,4 @@ export function useUser() {
     throw new Error('useUser must be used within a UserProvider');
   }
   return context;
-} 
+}

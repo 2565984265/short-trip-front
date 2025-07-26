@@ -21,7 +21,7 @@ const mockApplication = {
     createdAt: '2023-06-15',
     tags: ['旅行', '摄影', '美食'],
   },
-  reason: '我是一名专业的旅行规划师，有丰富的旅行经验和专业知识。我希望通过创作者身份，为更多旅行者提供优质的攻略和建议。',
+        reason: '我是一名专业的旅行规划师，有丰富的旅行经验和专业知识。我希望通过创作者身份，为更多旅行者提供优质的指南和建议。',
   portfolio: {
     guides: [],
     posts: ['post1', 'post2', 'post3'],
@@ -209,7 +209,7 @@ export default function CreatorApplyPage() {
               <h4 className="font-medium text-blue-900 mb-2">创作者权益</h4>
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>• 获得创作者认证标识</li>
-                <li>• 优先展示你的攻略和动态</li>
+                <li>• 优先展示你的指南和动态</li>
                 <li>• 参与平台活动和合作机会</li>
                 <li>• 获得更多曝光和粉丝增长</li>
                 <li>• 专属创作者工具和数据分析</li>

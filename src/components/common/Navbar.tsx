@@ -115,6 +115,7 @@ export default function Navbar() {
             <NavLink href="/map">地图</NavLink>
             <NavLink href="/guides">指南</NavLink>
             <NavLink href="/community">社区</NavLink>
+            <NavLink href="/kml-manager">KML管理</NavLink>
             <NavLink href="/ai">AI助手</NavLink>
             <NavLink href="/planner" isPrimary>行程规划</NavLink>
             
@@ -227,6 +228,7 @@ export default function Navbar() {
             <MobileNavLink href="/map" onClick={() => setMobileMenuOpen(false)}>地图</MobileNavLink>
             <MobileNavLink href="/guides" onClick={() => setMobileMenuOpen(false)}>指南</MobileNavLink>
             <MobileNavLink href="/community" onClick={() => setMobileMenuOpen(false)}>社区</MobileNavLink>
+            <MobileNavLink href="/kml-manager" onClick={() => setMobileMenuOpen(false)}>KML管理</MobileNavLink>
             <MobileNavLink href="/ai" onClick={() => setMobileMenuOpen(false)}>AI助手</MobileNavLink>
             <MobileNavLink href="/planner" onClick={() => setMobileMenuOpen(false)}>行程规划</MobileNavLink>
             

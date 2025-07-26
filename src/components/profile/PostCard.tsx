@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { getFileUrl } from '../../services/api';
 
 interface Post {
   id: number;
@@ -28,9 +29,10 @@ interface PostCardProps {
   onDelete?: (postId: number) => void;
   onLike?: (postId: number) => void;
   onUnlike?: (postId: number) => void;
+  onShowComments?: (postId: number) => void;
 }
 
-export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike }: PostCardProps) {
+export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike, onShowComments }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likeCount, setLikeCount] = useState(post.likeCount);
 
@@ -63,10 +65,13 @@ export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike }: P
       <div className="flex items-center mb-3">
         <div className="relative w-10 h-10 mr-3">
           <Image
-            src={post.userAvatar || '/avatars/user1.jpg'}
+            src={getFileUrl(post.userAvatar)}
             alt={post.userNickname}
             fill
             className="rounded-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = '/avatars/user1.jpg';
+            }}
           />
         </div>
         <div className="flex-1">
@@ -109,7 +114,7 @@ export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike }: P
           {post.images.length === 1 ? (
             <div className="relative w-full h-64">
               <Image
-                src={post.images[0]}
+                src={getFileUrl(post.images[0])}
                 alt="动态图片"
                 fill
                 className="rounded-lg object-cover"
@@ -120,7 +125,7 @@ export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike }: P
               {post.images.slice(0, 4).map((image, index) => (
                 <div key={index} className="relative aspect-square">
                   <Image
-                    src={image}
+                    src={getFileUrl(image)}
                     alt={`动态图片 ${index + 1}`}
                     fill
                     className="rounded-lg object-cover"
@@ -151,17 +156,20 @@ export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike }: P
         <div className="flex items-center space-x-4">
           <button
             onClick={handleLike}
-            className={`flex items-center space-x-1 ${
+            className={`flex items-center space-x-1 transition-colors ${
               isLiked ? 'text-red-500' : 'hover:text-red-500'
             }`}
           >
             <span>{isLiked ? '❤️' : '🤍'}</span>
             <span>{likeCount}</span>
           </button>
-          <div className="flex items-center space-x-1">
+          <button
+            onClick={() => onShowComments?.(post.id)}
+            className="flex items-center space-x-1 hover:text-blue-500 transition-colors"
+          >
             <span>💬</span>
             <span>{post.commentCount}</span>
-          </div>
+          </button>
           <div className="flex items-center space-x-1">
             <span>👁️</span>
             <span>{post.viewCount}</span>
@@ -170,4 +178,4 @@ export default function PostCard({ post, onEdit, onDelete, onLike, onUnlike }: P
       </div>
     </div>
   );
-} 
+}

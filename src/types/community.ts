@@ -2,24 +2,11 @@
 
 export interface User {
   id: string;
-  name: string;
+  username: string;
+  nickname?: string;
   avatar?: string;
+  email?: string;
   bio?: string;
-  isCreator: boolean;
-  followers: number;
-  following: number;
-  posts: number;
-  guides: number;
-  createdAt: string;
-  tags: string[];
-  location?: string;
-  website?: string;
-  socialLinks?: {
-    weibo?: string;
-    wechat?: string;
-    douyin?: string;
-    xiaohongshu?: string;
-  };
 }
 
 export interface Post {
@@ -47,24 +34,28 @@ export interface Post {
 }
 
 export interface Comment {
-  id: string;
-  postId: string;
-  author: User;
+  id: number;
+  contentType?: string;
+  contentId?: number;
+  postId?: number; // 保持向后兼容
+  parentId?: number;
+  userId: number;
+  userNickname: string;
+  userAvatar?: string;
   content: string;
   images?: string[];
-  likes: number;
-  createdAt: string;
-  replies?: Comment[];
+  likeCount: number;
   isLiked?: boolean;
+  isOwned?: boolean;
+  createTime: string;
+  replies?: Comment[];
 }
 
 export interface Video {
-  platform: 'douyin' | 'xiaohongshu' | 'youtube' | 'bilibili' | 'other';
+  id: string;
   url: string;
-  title: string;
-  description?: string;
-  thumbnail?: string;
-  duration?: number;
+  thumbnail: string;
+  duration: number;
 }
 
 export interface TrendingTopic {
@@ -91,11 +82,10 @@ export interface CreatorApplication {
 }
 
 export interface CommunityStats {
-  totalUsers: number;
   totalPosts: number;
-  totalCreators: number;
+  totalUsers: number;
+  totalComments: number;
   activeUsers: number;
-  trendingTopics: TrendingTopic[];
 }
 
 export interface PostFilter {
@@ -140,4 +130,19 @@ export interface UpdateUserData {
     xiaohongshu?: string;
   };
   tags?: string[];
-} 
+}
+
+export interface CreateCommentRequest {
+  content: string;
+  parentId?: number;
+}
+
+// 评论展示相关类型
+export interface CommentDisplayProps {
+  comments: Comment[];
+  loading?: boolean;
+  onLike?: (commentId: number) => void;
+  onUnlike?: (commentId: number) => void;
+  onReply?: (parentId: number, content: string) => void;
+  onDelete?: (commentId: number) => void;
+}

@@ -22,7 +22,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <PrimaryButton href="/map">开始探索地图</PrimaryButton>
-            <SecondaryButton href="/guides">浏览攻略</SecondaryButton>
+                            <SecondaryButton href="/guides">浏览指南</SecondaryButton>
             <TertiaryButton href="/community">加入社区</TertiaryButton>
             <TertiaryButton href="/ai/assistant">AI助手</TertiaryButton>
           </div>
@@ -31,7 +31,7 @@ export default function Home() {
           {!isAuthenticated && (
             <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-center">
-                💡 登录后可以保存个人偏好、收藏攻略、参与社区讨论
+                💡 登录后可以保存个人偏好、收藏指南、参与社区讨论
                 <Link href="/login" className="ml-2 text-blue-600 hover:text-blue-800 font-medium underline">
                   立即登录
                 </Link>
@@ -56,14 +56,14 @@ export default function Home() {
             color: 'from-green-500 to-teal-500'
           }, {
             icon: '📖',
-            title: '攻略中心',
-            desc: '精选旅行攻略，包含详细路线、装备建议、注意事项，助你轻松规划行程',
+                    title: '指南中心',
+        desc: '精选旅行指南，包含详细路线、装备建议、注意事项，助你轻松规划行程',
             href: '/guides',
             color: 'from-orange-500 to-amber-500'
           }, {
             icon: '👥',
             title: '社区分享',
-            desc: '创作者分享真实路线攻略，支持图文、视频内容，打造活跃的旅行社区',
+            desc: '创作者分享真实路线指南，支持图文、视频内容，打造活跃的旅行社区',
             href: '/community',
             color: 'from-purple-500 to-indigo-500'
           }].map((item, index) => (

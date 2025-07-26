@@ -3,8 +3,34 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { KMLRoute } from '@/types/kml';
-import { kmlApi } from '@/services/kml';
+import { kmlAPI } from '@/services/kml';
+import { getFileContent } from '@/services/api';
+
+// KML路线类型
+interface KMLRoute {
+  id: number;
+  name?: string;
+  description?: string;
+  travelMode?: string;
+  creatorName?: string;
+  tags?: string[];
+  totalDistance?: number;
+  trackPoints: Array<{ latitude: number; longitude: number; altitude?: number }>;
+  placemarks: Array<{ 
+    name?: string; 
+    description?: string; 
+    coordinates: { latitude: number; longitude: number; altitude?: number };
+    coordinate?: { latitude: number; longitude: number; altitude?: number }; // 兼容字段
+    type?: string;
+    attachments?: any[];
+  }>;
+  maxAltitude?: number;
+  minAltitude?: number;
+  totalAscent?: number;
+  totalDescent?: number;
+  startPoint?: { latitude: number; longitude: number; altitude?: number };
+  endPoint?: { latitude: number; longitude: number; altitude?: number };
+}
 
 // 修复Leaflet默认图标路径问题
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -63,8 +89,8 @@ interface MapComponentProps {
 }
 
 export default function MapComponent({ 
-  center = [39.9042, 116.4074],
-  zoom = 10,
+  center = [30.2741, 120.1551], // 杭州市中心坐标
+  zoom = 11,
   markers = [],
   routes = [],
   enablePOILoading = false,
@@ -310,22 +336,212 @@ export default function MapComponent({
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/map/kml-routes`);
+      console.log('🗺️ 开始加载KML路线数据...');
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // 使用正确的KML文件API端点
+      const response = await kmlAPI.getPublicKMLFiles(0, 20) as any;
+      console.log('📁 KML文件列表响应:', response);
+      
+      if (response.code !== 0) {
+        throw new Error(response.message || 'KML数据加载失败');
+      }
+      
+      const kmlFiles = response.data?.content || [];
+      console.log(`📋 获取到 ${kmlFiles.length} 个KML文件`);
+      
+      if (kmlFiles.length === 0) {
+        console.log('⚠️ 暂无KML路线数据');
+        if (isComponentMountedRef.current) {
+          setKmlRoutes([]);
+        }
+        return;
       }
 
-      const result: ApiResponse<KMLRoute[]> = await response.json();
+      const routes: KMLRoute[] = [];
+      let processedCount = 0;
       
-      if (result.code === 0 && isComponentMountedRef.current) {
-        setKmlRoutes(result.data);
-      } else if (result.code !== 0) {
-        throw new Error(result.message || '获取KML路线数据失败');
+      // 处理每个KML文件，限制数量避免性能问题
+      for (const kmlFile of kmlFiles.slice(0, 10)) {
+        try {
+          console.log(`🔄 处理KML文件: ${kmlFile.fileName} (ID: ${kmlFile.id})`);
+          
+          // 创建基本路线对象
+          const route: KMLRoute = {
+            id: kmlFile.id,
+            name: kmlFile.routeName || kmlFile.fileName || '未命名路线',
+            description: kmlFile.routeDescription || kmlFile.remarks || '',
+            travelMode: kmlFile.travelMode,
+            creatorName: kmlFile.creatorName,
+            totalDistance: kmlFile.totalDistance,
+            trackPoints: [],
+            placemarks: []
+          };
+
+          try {
+            // 尝试下载并解析KML文件内容获取详细轨迹点
+            console.log(`📄 下载KML文件内容: ${kmlFile.id}`);
+            const kmlContent = await getFileContent(`/api/kml-files/${kmlFile.id}/download`);
+
+            console.log(`📄 KML内容长度: ${kmlContent.length} 字符`);
+            
+            // 解析KML XML内容
+            const parser = new DOMParser();
+            const kmlDoc = parser.parseFromString(kmlContent, 'text/xml');
+            
+            // 检查解析错误
+            const parseError = kmlDoc.querySelector('parsererror');
+            if (parseError) {
+              throw new Error('KML解析错误: ' + parseError.textContent);
+            }
+            
+            // 首先尝试解析轨迹线 (LineString coordinates) - 在线编辑器生成的KML
+            const lineStrings = kmlDoc.querySelectorAll('LineString coordinates');
+            let hasLineString = false;
+            
+            lineStrings.forEach(coordsElement => {
+              const coordsText = coordsElement.textContent?.trim();
+              if (coordsText) {
+                const coordinates = coordsText
+                  .split(/\s+/)
+                  .map(coord => coord.trim())
+                  .filter(coord => coord.length > 0)
+                  .map(coord => {
+                    const [lng, lat, alt] = coord.split(',').map(Number);
+                    return { latitude: lat, longitude: lng, altitude: alt || undefined };
+                  })
+                  .filter(point => !isNaN(point.latitude) && !isNaN(point.longitude));
+                
+                route.trackPoints.push(...coordinates);
+                hasLineString = true;
+              }
+            });
+            
+            // 解析标注点 (Placemark)
+            const placemarks = kmlDoc.querySelectorAll('Placemark');
+            const placemarkPoints: Array<{latitude: number, longitude: number, altitude?: number, name?: string, description?: string}> = [];
+            
+            placemarks.forEach(placemark => {
+              const pointCoords = placemark.querySelector('Point coordinates');
+              if (pointCoords) {
+                const coordsText = pointCoords.textContent?.trim();
+                if (coordsText) {
+                  const [lng, lat, alt] = coordsText.split(',').map(Number);
+                  if (!isNaN(lat) && !isNaN(lng)) {
+                    const name = placemark.querySelector('name')?.textContent || '';
+                    const description = placemark.querySelector('description')?.textContent || '';
+                    
+                    const point = {
+                      latitude: lat,
+                      longitude: lng, 
+                      altitude: alt || undefined,
+                      name,
+                      description
+                    };
+                    
+                    placemarkPoints.push(point);
+                    
+                    // 添加到标注点列表
+                    route.placemarks.push({
+                      name,
+                      description,
+                      coordinates: { latitude: lat, longitude: lng, altitude: alt || undefined },
+                      coordinate: { latitude: lat, longitude: lng, altitude: alt || undefined } // 兼容字段
+                    });
+                  }
+                }
+              }
+            });
+            
+            // 如果没有LineString轨迹线，但有多个标注点，则将标注点作为轨迹线连接
+            if (!hasLineString && placemarkPoints.length > 1) {
+              console.log(`📍 没有LineString，将 ${placemarkPoints.length} 个标注点连接为轨迹线`);
+              
+              // 智能排序：尝试按地理位置构建合理的路径
+              const sortedPoints = [...placemarkPoints];
+              
+              // 如果点数不多（<=10），使用简单的最近邻排序
+              if (sortedPoints.length <= 10) {
+                const orderedPoints = [sortedPoints[0]]; // 从第一个点开始
+                const remainingPoints = sortedPoints.slice(1);
+                
+                while (remainingPoints.length > 0) {
+                  const lastPoint = orderedPoints[orderedPoints.length - 1];
+                  let nearestIndex = 0;
+                  let nearestDistance = Number.MAX_VALUE;
+                  
+                  // 找到距离当前最后一个点最近的点
+                  remainingPoints.forEach((point, index) => {
+                    const distance = Math.sqrt(
+                      Math.pow(point.latitude - lastPoint.latitude, 2) + 
+                      Math.pow(point.longitude - lastPoint.longitude, 2)
+                    );
+                    if (distance < nearestDistance) {
+                      nearestDistance = distance;
+                      nearestIndex = index;
+                    }
+                  });
+                  
+                  orderedPoints.push(remainingPoints[nearestIndex]);
+                  remainingPoints.splice(nearestIndex, 1);
+                }
+                
+                route.trackPoints = orderedPoints.map(p => ({
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                  altitude: p.altitude
+                }));
+                
+                console.log(`📍 使用最近邻排序重新排列了 ${orderedPoints.length} 个点`);
+              } else {
+                // 点数太多，使用原始顺序避免计算复杂度过高
+                route.trackPoints = placemarkPoints.map(p => ({
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                  altitude: p.altitude
+                }));
+                
+                console.log(`📍 点数较多(${placemarkPoints.length})，使用原始顺序`);
+              }
+            }
+            
+            console.log(`🔍 解析KML结果: ${route.name}, 轨迹点: ${route.trackPoints.length}, 标注点: ${route.placemarks.length}`);
+            
+          } catch (parseError) {
+            console.warn(`⚠️ 无法解析KML文件内容 ${kmlFile.fileName}, 使用元数据:`, parseError);
+            
+            // 如果解析失败，使用元数据中的起终点信息
+            if (kmlFile.startLatitude && kmlFile.startLongitude && 
+                kmlFile.endLatitude && kmlFile.endLongitude) {
+              route.trackPoints = [
+                { latitude: kmlFile.startLatitude, longitude: kmlFile.startLongitude },
+                { latitude: kmlFile.endLatitude, longitude: kmlFile.endLongitude }
+              ];
+            }
+          }
+          
+          // 设置起终点
+          if (route.trackPoints.length > 0) {
+            route.startPoint = route.trackPoints[0];
+            route.endPoint = route.trackPoints[route.trackPoints.length - 1];
+          }
+          
+          routes.push(route);
+          processedCount++;
+          console.log(`✅ 成功处理KML路线: ${route.name} (${route.trackPoints.length} 个轨迹点)`);
+          
+        } catch (err) {
+          console.error(`❌ 处理KML文件失败: ${kmlFile.fileName}`, err);
+        }
       }
+      
+      if (isComponentMountedRef.current) {
+        setKmlRoutes(routes);
+        console.log(`🎯 总共处理了 ${processedCount} 条KML路线`);
+      }
+      
     } catch (err) {
       if (isComponentMountedRef.current) {
-        console.error('获取KML路线数据失败:', err);
+        console.error('❌ KML路线加载失败:', err);
         setError(err instanceof Error ? err.message : '获取KML路线数据失败');
       }
     } finally {
@@ -425,6 +641,9 @@ export default function MapComponent({
 
     tryLocationStrategies()
       .then((position) => {
+        if (!position || !position.coords) {
+          throw new Error('位置数据无效');
+        }
         const { latitude, longitude } = position.coords;
         const location = { lat: latitude, lng: longitude };
         
@@ -607,9 +826,7 @@ export default function MapComponent({
       fetchRoutes(bounds);
     }
 
-    if (enableKMLLoading) {
-      fetchKMLRoutes();
-    }
+    // KML数据加载移到单独的useEffect中，避免重复调用
 
     return () => {
       if (map) {
@@ -959,11 +1176,19 @@ export default function MapComponent({
     }
   }, [pendingLocationMove, mapReady, forceMoveToLocation]);
 
-  // 处理设置变化
+  // KML数据加载 - 单独处理避免重复调用
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady || !enableKMLLoading) return;
+    
+    console.log('🗺️ 地图就绪，开始加载KML数据');
+    fetchKMLRoutes();
+  }, [mapReady, enableKMLLoading, fetchKMLRoutes]);
+
+  // 处理设置变化 - 不包含KML加载
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady) return;
 
-    // 重新加载数据
+    // 重新加载POI和路线数据
     if (enablePOILoading) {
       const bounds = mapInstanceRef.current.getBounds();
       fetchPOIs(bounds);
@@ -973,11 +1198,7 @@ export default function MapComponent({
       const bounds = mapInstanceRef.current.getBounds();
       fetchRoutes(bounds);
     }
-
-    if (enableKMLLoading) {
-      fetchKMLRoutes();
-    }
-  }, [enablePOILoading, enableRouteLoading, enableKMLLoading, selectedPOITypes, selectedTravelModes, mapReady, fetchPOIs, fetchRoutes, fetchKMLRoutes]);
+  }, [enablePOILoading, enableRouteLoading, selectedPOITypes, selectedTravelModes, mapReady, fetchPOIs, fetchRoutes]);
 
   // 组件卸载时清理
   useEffect(() => {

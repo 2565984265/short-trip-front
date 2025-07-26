@@ -10,6 +10,7 @@ import GuideCard from '@/components/profile/GuideCard';
 import PostEditModal from '@/components/profile/PostEditModal';
 import GuideEditModal from '@/components/profile/GuideEditModal';
 import ProfileEditModal from '@/components/profile/ProfileEditModal';
+import CommentModal from '@/components/profile/CommentModal';
 import { postAPI, guideAPI, userAPI, ApiResponse, PageResponse, getFileUrl } from '@/services/api';
 
 // 模拟用户数据
@@ -38,7 +39,7 @@ const mockUser = {
 const mockPosts = [
   {
     id: '1',
-    content: '刚刚完成了张家界三日游，分享一些实用攻略！玻璃栈道真的很刺激，建议恐高的小伙伴慎重考虑。',
+    content: '刚刚完成了张家界三日游，分享一些实用指南！玻璃栈道真的很刺激，建议恐高的小伙伴慎重考虑。',
     images: ['/images/zhangjiajie1.jpg'],
     likes: 89,
     comments: 23,
@@ -57,7 +58,7 @@ const mockPosts = [
 const mockGuides = [
   {
     id: '1',
-    title: '张家界三日游完美攻略',
+    title: '张家界三日游完美指南',
     coverImage: '/images/zhangjiajie.jpg',
     rating: 4.8,
     viewCount: 2340,
@@ -65,7 +66,7 @@ const mockGuides = [
   },
   {
     id: '2',
-    title: '川藏线骑行攻略',
+    title: '川藏线骑行指南',
     coverImage: '/images/tibet.jpg',
     rating: 4.9,
     viewCount: 1890,
@@ -84,7 +85,7 @@ export default function ProfilePage() {
   const [postsPage, setPostsPage] = useState(0);
   const [postsHasMore, setPostsHasMore] = useState(true);
   
-  // 攻略相关状态
+  // 指南相关状态
   const [guides, setGuides] = useState<any[]>([]);
   const [guidesLoading, setGuidesLoading] = useState(false);
   const [guidesPage, setGuidesPage] = useState(0);
@@ -96,6 +97,9 @@ export default function ProfilePage() {
   const [guideModalOpen, setGuideModalOpen] = useState(false);
   const [editingGuide, setEditingGuide] = useState<any>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [selectedPostAuthor, setSelectedPostAuthor] = useState('');
 
   // 加载动态
   const loadPosts = async (page = 0, append = false) => {
@@ -121,7 +125,7 @@ export default function ProfilePage() {
     }
   };
 
-  // 加载攻略
+  // 加载指南
   const loadGuides = async (page = 0, append = false) => {
     if (guidesLoading) return;
     
@@ -129,7 +133,7 @@ export default function ProfilePage() {
     try {
       const response = await guideAPI.getMyGuides(page) as ApiResponse<PageResponse<any>>;
       if (response.code === 0) {
-        // 为当前用户的攻略添加isOwned属性
+        // 为当前用户的指南添加isOwned属性
         const newGuides = response.data.content.map((guide: any) => ({
           ...guide,
           isOwned: true
@@ -143,7 +147,7 @@ export default function ProfilePage() {
         setGuidesPage(page);
       }
     } catch (error) {
-      console.error('加载攻略失败:', error);
+              console.error('加载指南失败:', error);
     } finally {
       setGuidesLoading(false);
     }
@@ -273,15 +277,15 @@ export default function ProfilePage() {
     setPostModalOpen(true);
   };
 
-  // 攻略处理函数
+  // 指南处理函数
   const handleCreateGuide = async (guideData: any) => {
     try {
       const response = await guideAPI.createGuide(guideData) as ApiResponse<any>;
       if (response.code === 0) {
-        loadGuides(0, false); // 重新加载攻略列表
+        loadGuides(0, false); // 重新加载指南列表
       }
     } catch (error) {
-      console.error('创建攻略失败:', error);
+      console.error('创建指南失败:', error);
     }
   };
 
@@ -291,15 +295,15 @@ export default function ProfilePage() {
     try {
       const response = await guideAPI.updateGuide(editingGuide.id, guideData) as ApiResponse<any>;
       if (response.code === 0) {
-        loadGuides(0, false); // 重新加载攻略列表
+        loadGuides(0, false); // 重新加载指南列表
       }
     } catch (error) {
-      console.error('更新攻略失败:', error);
+      console.error('更新指南失败:', error);
     }
   };
 
   const handleDeleteGuide = async (guideId: number) => {
-    if (!confirm('确定要删除这个攻略吗？')) return;
+    if (!confirm('确定要删除这个指南吗？')) return;
     
     try {
       const response = await guideAPI.deleteGuide(guideId) as ApiResponse<any>;
@@ -307,7 +311,7 @@ export default function ProfilePage() {
         setGuides(guides.filter(guide => guide.id !== guideId));
       }
     } catch (error) {
-      console.error('删除攻略失败:', error);
+      console.error('删除指南失败:', error);
     }
   };
 
@@ -335,6 +339,14 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('收藏失败:', error);
     }
+  };
+
+  // 显示评论
+  const handleShowComments = (postId: number) => {
+    const post = posts.find(p => p.id === postId);
+    setSelectedPostId(postId);
+    setSelectedPostAuthor(post?.author?.nickname || post?.author?.username || '');
+    setCommentModalOpen(true);
   };
 
   const handleEditGuide = (guide: any) => {
@@ -396,7 +408,7 @@ export default function ProfilePage() {
                 <span>{user.followerCount || 0} 粉丝</span>
                 <span>{user.followingCount || 0} 关注</span>
                 <span>{user.postCount || 0} 动态</span>
-                <span>{user.guideCount || 0} 攻略</span>
+                <span>{user.guideCount || 0} 指南</span>
               </div>
             </div>
 
@@ -438,7 +450,7 @@ export default function ProfilePage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                攻略 ({user.guideCount || 0})
+                指南 ({user.guideCount || 0})
               </button>
               <button
                 onClick={() => setActiveTab('about')}
@@ -493,6 +505,7 @@ export default function ProfilePage() {
                         onDelete={handleDeletePost}
                         onLike={handleLikePost}
                         onUnlike={handleUnlikePost}
+                        onShowComments={handleShowComments}
                       />
                     ))
                   )}
@@ -515,17 +528,17 @@ export default function ProfilePage() {
 
             {activeTab === 'guides' && (
               <div>
-                {/* 创建攻略按钮 */}
+                {/* 创建指南按钮 */}
                 <div className="mb-6">
                   <button
                     onClick={handleCreateNewGuide}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    ✏️ 创建攻略
+                    ✏️ 创建指南
                   </button>
                 </div>
 
-                {/* 攻略列表 */}
+                {/* 指南列表 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {guidesLoading && guides.length === 0 ? (
                     <div className="col-span-2 text-center py-8">
@@ -534,12 +547,12 @@ export default function ProfilePage() {
                     </div>
                   ) : guides.length === 0 ? (
                     <div className="col-span-2 text-center py-8">
-                      <p className="text-gray-500">还没有创建过攻略</p>
+                      <p className="text-gray-500">还没有创建过指南</p>
                       <button
                         onClick={handleCreateNewGuide}
                         className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                       >
-                        创建第一篇攻略
+                        创建第一篇指南
                       </button>
                     </div>
                   ) : (
@@ -613,7 +626,7 @@ export default function ProfilePage() {
         isEdit={!!editingPost}
       />
 
-      {/* 攻略编辑模态框 */}
+              {/* 指南编辑模态框 */}
       <GuideEditModal
         isOpen={guideModalOpen}
         onClose={() => {
@@ -622,7 +635,7 @@ export default function ProfilePage() {
         }}
         onSave={editingGuide ? handleUpdateGuide : handleCreateGuide}
         guide={editingGuide}
-        title={editingGuide ? '编辑攻略' : '创建攻略'}
+                  title={editingGuide ? '编辑指南' : '创建指南'}
       />
 
       {/* 个人资料编辑模态框 */}
@@ -631,6 +644,19 @@ export default function ProfilePage() {
         onClose={() => setShowProfileModal(false)}
         onSave={handleUpdateProfile}
         user={user}
+      />
+
+      {/* 评论模态框 */}
+      <CommentModal
+        isOpen={commentModalOpen}
+        onClose={() => {
+          setCommentModalOpen(false);
+          setSelectedPostId(null);
+          setSelectedPostAuthor('');
+        }}
+        contentType="POST"
+        contentId={selectedPostId || 0}
+        contentAuthor={selectedPostAuthor}
       />
     </div>
   );
